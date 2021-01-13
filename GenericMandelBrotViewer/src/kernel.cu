@@ -6276,6 +6276,15 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 
 int main() {
 
+    // Check for CUDA devices:
+    int deviceCount;
+    cudaGetDeviceCount(&deviceCount);
+    if (!(deviceCount > 0))
+    {
+        printf("No CUDA compatible devices found. Exiting.");
+        exit(1);
+    }
+
     printf("numBlocks: %d\nblockSize: %d\n", numBlocks, blockSize);
 
     cudaMallocManaged(&points, resolution_x * resolution_y * sizeof(thrust::complex<double>));
