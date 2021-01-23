@@ -155,12 +155,9 @@ __global__ void color_cuda(
             } 
             else
             {
-                // Grayscale Coloring
                 float f_iterations = (float)iterations;
                 float f_max_iterations = (float)max_iterations;
-                unsigned char red;
-                unsigned char green;
-                unsigned char blue;
+                // Smooth colors!
                 float escape_size = __double2float_rn(squared_absolute_values[index]);
                 float smoothed_iterations = iterations + 1 - log2f(log(escape_size)) + sqrtf(sqrtf(draw_radius));
                 float H = 360*smoothed_iterations / f_max_iterations;
@@ -224,9 +221,9 @@ __global__ void color_cuda(
                     g = 1-m;
                     b = 1-m;
                 }
-                red = (r + m) * 255;
-                green = (g + m) * 255;
-                blue = (b + m) * 255;
+                unsigned char red = (r + m) * 255;
+                unsigned char green = (g + m) * 255;
+                unsigned char blue = (b + m) * 255;
                 // End of conversion.  
 #pragma endregion
 

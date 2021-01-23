@@ -107,7 +107,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\glfw3.h" />
-    <ClInclude Include="Dependencies\GLFW\include\GLFW\glfw3native.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="Dependencies\GLFW\lib-vc2019\glfw3.lib" />
