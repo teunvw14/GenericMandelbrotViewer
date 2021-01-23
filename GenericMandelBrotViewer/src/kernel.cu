@@ -35,7 +35,7 @@ unsigned char* pixels_rgb;
 unsigned short* iterationsArr;
 
 
-__global__ void build_complex_grid_kernel(
+__global__ void build_complex_grid_cuda(
     double center_x, double center_y, 
     double draw_radius, 
     int resolution_x, int resolution_y, 
@@ -66,7 +66,11 @@ __global__ void build_complex_grid_kernel(
 	}
 }
 
-__global__ void mandelbrot_iterate_kernel(
+__host__ void build_complex_grid(){
+
+}
+
+__global__ void mandelbrot_iterate_cuda(
     int max_iterations,
     double escape_radius_squared,
     int resolution_x, int resolution_y,
@@ -110,8 +114,7 @@ __global__ void mandelbrot_iterate_kernel(
     }
 }
 
-
-__global__ void color_kernel(
+__global__ void color_cuda(
     int max_iterations,
     unsigned short* iterationsArr,
     double * squared_absolute_values,
@@ -245,15 +248,14 @@ __global__ void color_kernel(
 // GLFW
 GLFWwindow* window;
 
-void host_build_complex_grid_kernel()
+void build_complex_grid()
 {
-    build_complex_grid_kernel <<< 1, 1024 >>> (center_x, center_y, draw_radius, resolution_x, resolution_y, points, iterated_points);
+    build_complex_grid_cuda <<< 1, 1024 >>> (center_x, center_y, draw_radius, resolution_x, resolution_y, points, iterated_points);
 }
 
-void host_mandelbrot_iterate_and_color()
+void mandelbrot_iterate_and_color()
 {
-
-    mandelbrot_iterate_kernel <<< numBlocks, blockSize
+    mandelbrot_iterate_cuda <<< numBlocks, blockSize
         >>> (
             max_iterations,
             escape_radius_squared,
@@ -265,7 +267,7 @@ void host_mandelbrot_iterate_and_color()
             );
 
     cudaDeviceSynchronize();
-    color_kernel <<< numBlocks, blockSize
+    color_cuda <<< numBlocks, blockSize
     >>> (
             max_iterations,
             iterationsArr,
@@ -278,10 +280,10 @@ void host_mandelbrot_iterate_and_color()
 }
 
 // Under maintenance.
-void host_mandelbrot_iterate_n_and_color(int iterations)
+void mandelbrot_iterate_n_and_color(int iterations)
 {
-    host_mandelbrot_iterate_and_color();
-    //mandelbrot_iterate_and_color_kernel << < numBlocks, blockSize >> > (iterations, escape_radius_squared, resolution_x, resolution_y, points, iterated_points, squared_absolute_values, pixels_rgb);
+    mandelbrot_iterate_and_color();
+    //mandelbrot_iterate_and_color_cuda << < numBlocks, blockSize >> > (iterations, escape_radius_squared, resolution_x, resolution_y, points, iterated_points, squared_absolute_values, pixels_rgb);
 }
 
 
@@ -290,7 +292,7 @@ void reset_render_objects()
     // This function resets all the variables that are used for rendering the Mandelbrot. 
 
     // Rebuild the grid of complex numbers based on (new) center and (new) center.
-    host_build_complex_grid_kernel(); 
+    build_complex_grid(); 
     // Reset the `squared_absolute_values` to zero by allocating the memory space again.
     cudaFree(squared_absolute_values);
     cudaFree(iterationsArr);
@@ -320,32 +322,32 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         case GLFW_KEY_EQUAL: // zoom in, = is also +
             draw_radius *= 0.75; // zoom in
             reset_render_objects();
-            //host_mandelbrot_iterate_and_color();
+            //mandelbrot_iterate_and_color();
             break;
         case GLFW_KEY_MINUS: 
             draw_radius /= 0.75; // zoom out
             reset_render_objects();
-            //host_mandelbrot_iterate_and_color();
+            //mandelbrot_iterate_and_color();
             break;
         case GLFW_KEY_LEFT:
             center_x -= 0.1 * draw_radius;
             reset_render_objects();
-            //host_mandelbrot_iterate_and_color();
+            //mandelbrot_iterate_and_color();
             break;
         case GLFW_KEY_RIGHT:
             center_x += 0.1 * draw_radius;
             reset_render_objects();
-            //host_mandelbrot_iterate_and_color();
+            //mandelbrot_iterate_and_color();
             break;
         case GLFW_KEY_UP:
             center_y += 0.1 * draw_radius;
             reset_render_objects();
-            //host_mandelbrot_iterate_and_color();
+            //mandelbrot_iterate_and_color();
             break;
         case GLFW_KEY_DOWN:
             center_y -= 0.1 * draw_radius;
             reset_render_objects();
-            //host_mandelbrot_iterate_and_color();
+            //mandelbrot_iterate_and_color();
             break;
         case GLFW_KEY_LEFT_BRACKET:
             max_iterations *= 0.9;
@@ -419,14 +421,14 @@ int main() {
     cudaMallocManaged(&pixels_rgb, resolution_x * resolution_y * 3 * sizeof(unsigned char));
     cudaMallocManaged(&iterationsArr, resolution_x * resolution_y * sizeof(unsigned short));
 
-    host_build_complex_grid_kernel();
+    build_complex_grid();
     cudaDeviceSynchronize();
     //std::cout << "First complex number in grid: " << points[0] << std::endl;
     //std::cout << "Last complex number in grid: " << points[resolution_x * resolution_y - 1] << std::endl;
 
-    //mandelbrot_iterate_and_color_kernel <<< numBlocks, blockSize >>> (max_iterations, escape_radius_squared, resolution_x, resolution_y, points, iterated_points, squared_absolute_values, pixels_rgb);
+    //mandelbrot_iterate_and_color_cuda <<< numBlocks, blockSize >>> (max_iterations, escape_radius_squared, resolution_x, resolution_y, points, iterated_points, squared_absolute_values, pixels_rgb);
     //cudaDeviceSynchronize();
-    host_mandelbrot_iterate_and_color();
+    mandelbrot_iterate_and_color();
     cudaDeviceSynchronize();
     
     if (incremental_iteration) {
@@ -469,7 +471,7 @@ int main() {
         // TODO: make it so that the iterations increase for as long as the center and draw_radius are the same - up to the max of course
         if (rendered_iterations < max_iterations) {
             printf("rendering %d iterations\n", iterations_per_frame);
-            host_mandelbrot_iterate_n_and_color(iterations_per_frame);
+            mandelbrot_iterate_n_and_color(iterations_per_frame);
             cudaDeviceSynchronize();
             rendered_iterations += iterations_per_frame;
         }
