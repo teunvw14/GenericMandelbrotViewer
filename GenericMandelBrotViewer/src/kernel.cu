@@ -614,8 +614,41 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
     }
 }
 
-int main() {
+void allocate_memory() {
+    if (cuda_device_available) {
+        cudaMallocManaged(&points, resolution_x * resolution_y * sizeof(thrust::complex<double>));
+        cudaMallocManaged(&iterated_points, resolution_x * resolution_y * sizeof(thrust::complex<double>));
+        cudaMallocManaged(&squared_absolute_values, resolution_x * resolution_y * sizeof(double));
+        cudaMallocManaged(&pixels_rgb, resolution_x * resolution_y * 3 * sizeof(unsigned char));
+        cudaMallocManaged(&iterationsArr, resolution_x * resolution_y * sizeof(unsigned short));
+    }
+    else if (!(cuda_device_available)) {
+        points = (thrust::complex<double>*)malloc(resolution_x * resolution_y * sizeof(thrust::complex<double>));
+        iterated_points = (thrust::complex<double>*)malloc(resolution_x * resolution_y * sizeof(thrust::complex<double>));
+        squared_absolute_values = (double*)malloc(resolution_x * resolution_y * sizeof(double));
+        pixels_rgb = (unsigned char*)malloc(resolution_x * resolution_y * 3 * sizeof(unsigned char));
+        iterationsArr = (unsigned short*)malloc(resolution_x * resolution_y * sizeof(unsigned short));
+    }
+}
 
+void free_the_pointers() {
+    if (cuda_device_available) {
+        cudaFree(points);
+        cudaFree(iterated_points);
+        cudaFree(squared_absolute_values);
+        cudaFree(pixels_rgb);
+        cudaFree(iterationsArr);
+    }
+    else if (!(cuda_device_available)) {
+        free(points);
+        free(iterated_points);
+        free(squared_absolute_values);
+        free(pixels_rgb);
+        free(iterationsArr);
+    }
+}
+
+int main() {
     // Check for CUDA devices:
     int deviceCount;
     cudaGetDeviceCount(&deviceCount);
@@ -633,29 +666,9 @@ int main() {
         printf("No CUDA compatible devices found. Using CPU to compute images - performance will be limited.\n");
     }
 
-
-    if (cuda_device_available) {
-        cudaMallocManaged(&points, resolution_x * resolution_y * sizeof(thrust::complex<double>));
-        cudaMallocManaged(&iterated_points, resolution_x * resolution_y * sizeof(thrust::complex<double>));
-        cudaMallocManaged(&squared_absolute_values, resolution_x * resolution_y * sizeof(double));
-        cudaMallocManaged(&pixels_rgb, resolution_x * resolution_y * 3 * sizeof(unsigned char));
-        cudaMallocManaged(&iterationsArr, resolution_x * resolution_y * sizeof(unsigned short));
-    }
-    else if (!(cuda_device_available)) {
-        points = (thrust::complex<double> *)malloc(resolution_x * resolution_y * sizeof(thrust::complex<double>));
-        iterated_points = (thrust::complex<double> *)malloc(resolution_x * resolution_y * sizeof(thrust::complex<double>));
-        squared_absolute_values = (double *)malloc(resolution_x * resolution_y * sizeof(double));
-        pixels_rgb = (unsigned char *)malloc(resolution_x * resolution_y * 3 * sizeof(unsigned char));
-        iterationsArr = (unsigned short *)malloc(resolution_x * resolution_y * sizeof(unsigned short));
-    }
-
-
+    // Setup:
+    allocate_memory();
     build_complex_grid();
-    //std::cout << "First complex number in grid: " << points[0] << std::endl;
-    //std::cout << "Last complex number in grid: " << points[resolution_x * resolution_y - 1] << std::endl;
-
-    //mandelbrot_iterate_and_color_cuda <<< cuda_num_blocks, cuda_block_size >>> (max_iterations, escape_radius_squared, resolution_x, resolution_y, points, iterated_points, squared_absolute_values, pixels_rgb);
-    //cudaDeviceSynchronize();
     mandelbrot_iterate_and_color();
     
     if (incremental_iteration) {
@@ -665,25 +678,25 @@ int main() {
         iterations_per_frame = max_iterations;
     }
 
-    /* Initialize the library */
+    // Initialize the library 
     if (!glfwInit())
         return -1;
 
-    /* Create a windowed mode window and its OpenGL context */
+    // Create a windowed mode window and its OpenGL context 
     window = glfwCreateWindow(resolution_x, resolution_y, "Hello World", NULL, NULL);
+    char* window_title = (char*)malloc(256);
     if (!window)
     {
         glfwTerminate();
         return -1;
     }
 
-    /* Make the window's context current */
+    // Make the window's context current
     glfwMakeContextCurrent(window);
     glfwSetKeyCallback(window, key_callback);
     glfwSetScrollCallback(window, scroll_callback);
 
-
-    /* Loop until the user closes the window */
+    // Loop until the window is closed
     while (!glfwWindowShouldClose(window))
     {
         if (debugging_enabled)
@@ -691,46 +704,31 @@ int main() {
             Sleep(500); // set max fps to 2
         }
 
-        /* Render here */
+        // Render here 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        char* title_string = (char*)malloc(256);
 
         // TODO: make it so that the iterations increase for as long as the center and draw_radius are the same - up to the max of course
         if (rendered_iterations < max_iterations) {
             printf("rendering %d iterations\n", iterations_per_frame);
             mandelbrot_iterate_n_and_color(iterations_per_frame);
             rendered_iterations += iterations_per_frame;
-            sprintf(title_string, "points[0]: RE: %.32f IM: %.32f", points[0].real(), points[0].imag());
-            glfwSetWindowTitle(window, title_string);
+            sprintf(window_title, "points[0]: RE: %.32f IM: %.32f", points[0].real(), points[0].imag());
+            glfwSetWindowTitle(window, window_title);
         }
 
         glDrawPixels(resolution_x, resolution_y, GL_RGB, GL_UNSIGNED_BYTE, pixels_rgb);
 
-        /* Swap front and back buffers */
+        // Swap front and back buffers 
         glfwSwapBuffers(window);
 
-        /* Poll for and process events */
+        // Poll for and process events 
         glfwPollEvents();
     }
 
     glfwTerminate();
-
-    if (cuda_device_available) {
-        cudaFree(points);
-        cudaFree(iterated_points);
-        cudaFree(squared_absolute_values);
-        cudaFree(pixels_rgb);
-        cudaFree(iterationsArr);
-    }
-    else if (!(cuda_device_available)) {
-        free(points);
-        free(iterated_points);
-        free(squared_absolute_values);
-        free(pixels_rgb);
-        free(iterationsArr);
-    }
+    free_the_pointers();
 
 	return 0;
 }
