@@ -1,10 +1,10 @@
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-#include "glfw3.h"
-
-#include <thrust/complex.h>
-#include <iostream>
+#include <glfw3.h>
 #include <stdio.h>
+
+// CUDA imports
+#include <cuda_runtime.h>
+#include <device_launch_parameters.h>
+#include <thrust/complex.h>
 
 // Debugging:
 #include <windows.h>

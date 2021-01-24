@@ -42,10 +42,10 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)Dependencies\GLFW\include</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(ProjectDir)\Dependencies\GLFW\include</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)Dependencies\GLFW\include</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(ProjectDir)\Dependencies\GLFW\include</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -96,6 +96,7 @@
       <Include>C:\Users\Teun\coding\C++\GenericMandelBrotViewer\Dependencies\GLFW\include;%(Include)</Include>
       <FastMath>true</FastMath>
       <GenerateRelocatableDeviceCode>false</GenerateRelocatableDeviceCode>
+      <GPUDebugInfo>false</GPUDebugInfo>
     </CudaCompile>
     <CudaLink>
       <AdditionalLibraryDirectories>$(SolutionDir)GenericMandelBrotViewer\Dependencies\GLFW\lib-vc2019;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -106,7 +107,7 @@
     <CudaCompile Include="src\kernel.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\glfw3.h" />
+    <ClInclude Include="Dependencies\GLFW\include\glfw3.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="Dependencies\GLFW\lib-vc2019\glfw3.lib" />
