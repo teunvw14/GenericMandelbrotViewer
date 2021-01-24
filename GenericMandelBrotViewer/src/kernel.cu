@@ -226,7 +226,6 @@ __global__ void color_cuda(
                 float V = 1;
 
 
-#pragma region HSV_to_RGB_Conversion
                 // HSV to RGB conversion, yay!
                 // TODO: look into edge cases for H and why they happen.
                 //if (H > 360 || H < 0 || S > 1 || S < 0 || V > 1 || V < 0)
@@ -286,7 +285,6 @@ __global__ void color_cuda(
                 unsigned char green = (g + m) * 255;
                 unsigned char blue = (b + m) * 255;
                 // End of conversion.
-#pragma endregion
 
                 // Cap RGB values to 255
                 if (red > 255) { red = 255; }
