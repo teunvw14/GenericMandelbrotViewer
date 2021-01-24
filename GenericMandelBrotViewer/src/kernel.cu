@@ -8,7 +8,7 @@
 
 // Debugging:
 #include <windows.h>
-bool debugging_enabled = true;
+bool debugging_enabled = false;
 
 // Define starting parameters for the mandelbrot
 double center_x = 0.0;
@@ -34,7 +34,7 @@ thrust::complex<double>* points;
 thrust::complex<double>* iterated_points;
 double* squared_absolute_values;
 unsigned char* pixels_rgb;
-unsigned short* iterationsArr;
+unsigned short* iterationsArr; // TODO: Change to unsigned int. The program completely breaks if max_iterations >= 2^16 (= 65536) because of the unsigned short data type used here.
 
 
 __global__ void build_complex_grid_cuda(
@@ -562,7 +562,12 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             //mandelbrot_iterate_and_color();
             break;
         case GLFW_KEY_LEFT_BRACKET:
-            max_iterations *= 0.9;
+            if (max_iterations > 2 && max_iterations < 10) {
+                max_iterations--;
+            }
+            else if (max_iterations >= 10) {
+                max_iterations *= 0.9;
+            }
             printf("Max iterations now at: %d\n", max_iterations);
             if (incremental_iteration) {
                 iterations_per_frame = incremental_iterations_per_frame;
@@ -573,7 +578,12 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             reset_render_objects();
             break;
         case GLFW_KEY_RIGHT_BRACKET:
-            max_iterations /= 0.9;
+            if (max_iterations < 10) {
+                max_iterations++;
+            }
+            else if (max_iterations >= 10){
+                max_iterations /= 0.9;
+            }
             printf("Max iterations now at: %d\n", max_iterations);
             if (incremental_iteration) {
                 iterations_per_frame = incremental_iterations_per_frame;
@@ -595,7 +605,8 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             }
             break;
         case GLFW_KEY_ESCAPE:
-            glfwDestroyWindow(window);
+            // Set the close flag of the window to TRUE so that the program exits:
+            glfwSetWindowShouldClose(window, GL_TRUE);
             break;
         }
 
@@ -648,6 +659,15 @@ void free_the_pointers() {
     }
 }
 
+void setup_incremental_iterations() {
+    if (incremental_iteration) {
+        iterations_per_frame = incremental_iterations_per_frame;
+    }
+    else {
+        iterations_per_frame = max_iterations;
+    }
+}
+
 int main() {
     // Check for CUDA devices:
     int deviceCount;
@@ -670,13 +690,8 @@ int main() {
     allocate_memory();
     build_complex_grid();
     mandelbrot_iterate_and_color();
-    
-    if (incremental_iteration) {
-        iterations_per_frame = incremental_iterations_per_frame;
-    }
-    else {
-        iterations_per_frame = max_iterations;
-    }
+    setup_incremental_iterations();
+
 
     // Initialize the library 
     if (!glfwInit())
@@ -714,7 +729,7 @@ int main() {
             printf("rendering %d iterations\n", iterations_per_frame);
             mandelbrot_iterate_n_and_color(iterations_per_frame);
             rendered_iterations += iterations_per_frame;
-            sprintf(window_title, "points[0]: RE: %.32f IM: %.32f", points[0].real(), points[0].imag());
+            sprintf(window_title, "Max iterations: %d | points[0]: RE: %.32f IM: %.32f", max_iterations, points[0].real(), points[0].imag());
             glfwSetWindowTitle(window, window_title);
         }
 
