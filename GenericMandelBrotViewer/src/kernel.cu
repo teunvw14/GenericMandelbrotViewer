@@ -17,7 +17,7 @@ int resolution_x = 1024;
 int resolution_y = 1024;
 double draw_radius = 2.5;
 double escape_radius_squared = 4; // escape_radius = 2^7 = 256
-int max_iterations = 64;
+int max_iterations = 64000;
 
 bool incremental_iteration = false;
 int iterations_per_frame; // value set in main()
@@ -34,7 +34,7 @@ thrust::complex<double>* points;
 thrust::complex<double>* iterated_points;
 double* squared_absolute_values;
 unsigned char* pixels_rgb;
-unsigned short* iterationsArr; // TODO: Change to unsigned int. The program completely breaks if max_iterations >= 2^16 (= 65536) because of the unsigned short data type used here.
+unsigned int* iterationsArr;
 
 
 __global__ void build_complex_grid_cuda(
@@ -102,7 +102,7 @@ __global__ void mandelbrot_iterate_cuda(
     thrust::complex<double>* points,
     thrust::complex<double>* iterated_points,
     double* squared_absolute_values,
-    unsigned short* iterationsArr
+    unsigned int* iterationsArr
 )
 {
     int block_index_x = blockIdx.x;
@@ -126,7 +126,7 @@ __global__ void mandelbrot_iterate_cuda(
             thrust::complex<double> c = points[index];
             thrust::complex<double> it_point = iterated_points[index];
             double sq_abs = squared_absolute_values[index];
-            unsigned short iterations_ = iterationsArr[index];
+            unsigned int iterations_ = iterationsArr[index];
             while (iterations_ < max_iterations && sq_abs < escape_radius_squared) {
                 it_point = thrust::complex<double>(it_point.real() * it_point.real() - it_point.imag() * it_point.imag(), 2 * it_point.real() * it_point.imag()) + c; // z^2 + c
                 sq_abs = it_point.real() * it_point.real() + it_point.imag() * it_point.imag();
@@ -146,7 +146,7 @@ void mandelbrot_iterate_non_cuda(
     thrust::complex<double>* points,
     thrust::complex<double>* iterated_points,
     double* squared_absolute_values,
-    unsigned short* iterationsArr
+    unsigned int* iterationsArr
 )
 {
     int index;
@@ -161,7 +161,7 @@ void mandelbrot_iterate_non_cuda(
             thrust::complex<double> c = points[index];
             thrust::complex<double> it_point = iterated_points[index];
             double sq_abs = squared_absolute_values[index];
-            unsigned short iterations_ = iterationsArr[index];
+            unsigned int iterations_ = iterationsArr[index];
             while (iterations_ < max_iterations && sq_abs < escape_radius_squared) {
                 it_point = thrust::complex<double>(it_point.real() * it_point.real() - it_point.imag() * it_point.imag(), 2 * it_point.real() * it_point.imag()) + c; // z^2 + c
                 sq_abs = it_point.real() * it_point.real() + it_point.imag() * it_point.imag();
@@ -177,7 +177,7 @@ void mandelbrot_iterate_non_cuda(
 
 __global__ void color_cuda(
     int max_iterations,
-    unsigned short* iterationsArr,
+    unsigned int* iterationsArr,
     double * squared_absolute_values,
     int resolution_x,
     int resolution_y,
@@ -197,7 +197,7 @@ __global__ void color_cuda(
     //int thread_index_y = threadIdx.y;
     //int thread_stride_y = blockDim.y;
     int index;
-    int iterations;
+    unsigned int iterations;
 
     //printf("thread_index_x: %i | block_index_x: %i | thread_stride_x: %i | block_stride_x: %i\n", thread_index_x, block_index_x, thread_stride_x, block_stride_x);
     for (int pixel_y = block_index_x; pixel_y < resolution_y; pixel_y += block_stride_x)
@@ -302,7 +302,7 @@ __global__ void color_cuda(
 
 void color_non_cuda(
     int max_iterations,
-    unsigned short* iterationsArr,
+    unsigned int* iterationsArr,
     double* squared_absolute_values,
     int resolution_x,
     int resolution_y,
@@ -312,7 +312,7 @@ void color_non_cuda(
 {
     // Do some coloring!
     int index;
-    int iterations;
+    unsigned int iterations;
 
     //printf("thread_index_x: %i | block_index_x: %i | thread_stride_x: %i | block_stride_x: %i\n", thread_index_x, block_index_x, thread_stride_x, block_stride_x);
     for (int pixel_y = 1; pixel_y < resolution_y; pixel_y++)
@@ -499,7 +499,7 @@ void reset_render_objects()
         cudaFree(squared_absolute_values);
         cudaFree(iterationsArr);
         cudaMallocManaged(&squared_absolute_values, resolution_x * resolution_y * sizeof(double));
-        cudaMallocManaged(&iterationsArr, resolution_x * resolution_y * sizeof(unsigned short));
+        cudaMallocManaged(&iterationsArr, resolution_x * resolution_y * sizeof(unsigned int));
         // Synchronize the GPU so the whole thing doesn't crash.
         cudaDeviceSynchronize();
     }
@@ -507,7 +507,7 @@ void reset_render_objects()
         free(squared_absolute_values);
         free(iterationsArr);
         squared_absolute_values = (double*)malloc(resolution_x * resolution_y * sizeof(double));
-        iterationsArr = (unsigned short*)malloc(resolution_x * resolution_y * sizeof(unsigned short));
+        iterationsArr = (unsigned int*)malloc(resolution_x * resolution_y * sizeof(unsigned int));
     }
 
     // Reset the amount of rendered iterations to 0. 
@@ -629,14 +629,14 @@ void allocate_memory() {
         cudaMallocManaged(&iterated_points, resolution_x * resolution_y * sizeof(thrust::complex<double>));
         cudaMallocManaged(&squared_absolute_values, resolution_x * resolution_y * sizeof(double));
         cudaMallocManaged(&pixels_rgb, resolution_x * resolution_y * 3 * sizeof(unsigned char));
-        cudaMallocManaged(&iterationsArr, resolution_x * resolution_y * sizeof(unsigned short));
+        cudaMallocManaged(&iterationsArr, resolution_x * resolution_y * sizeof(unsigned int));
     }
     else if (!(cuda_device_available)) {
         points = (thrust::complex<double>*)malloc(resolution_x * resolution_y * sizeof(thrust::complex<double>));
         iterated_points = (thrust::complex<double>*)malloc(resolution_x * resolution_y * sizeof(thrust::complex<double>));
         squared_absolute_values = (double*)malloc(resolution_x * resolution_y * sizeof(double));
         pixels_rgb = (unsigned char*)malloc(resolution_x * resolution_y * 3 * sizeof(unsigned char));
-        iterationsArr = (unsigned short*)malloc(resolution_x * resolution_y * sizeof(unsigned short));
+        iterationsArr = (unsigned int*)malloc(resolution_x * resolution_y * sizeof(unsigned int));
     }
 }
 
