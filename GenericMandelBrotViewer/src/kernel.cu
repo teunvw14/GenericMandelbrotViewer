@@ -13,8 +13,8 @@ bool debugging_enabled = false;
 // Define starting parameters for the mandelbrot
 double center_x = 0.0;
 double center_y = 0.0;
-int resolution_x = 1024;
-int resolution_y = 1024;
+int resolution_x = 128;
+int resolution_y = 128;
 double draw_radius = 2.5;
 double escape_radius_squared = 4; // escape_radius = 2^7 = 256
 int max_iterations = 64;
@@ -170,15 +170,13 @@ void mandelbrot_iterate_non_cuda(
     unsigned int* iterationsArr
 )
 {
-    int index;
+    int index = 0;
 
-    //printf("thread_index_x: %i | block_index_x: %i | thread_stride_x: %i | block_stride_x: %i\n", thread_index_x, block_index_x, thread_stride_x, block_stride_x);
-    for (int pixel_y = 1; pixel_y < resolution_y; pixel_y++)
+    for (int pixel_y = 0; pixel_y < resolution_y; pixel_y++)
     {
-        for (int pixel_x = 1; pixel_x < resolution_x; pixel_x++)
+        for (int pixel_x = 0; pixel_x < resolution_x; pixel_x++)
         {
             // Calculate the iterations required for a given point to exceed the escape radius.
-            index = pixel_y * resolution_y + pixel_x;
             double c_real = points_real[index];
             double c_imag = points_imag[index];
             double it_point_real = iterated_points_real[index];
@@ -186,16 +184,16 @@ void mandelbrot_iterate_non_cuda(
             double sq_abs = squared_absolute_values[index];
             unsigned int iterations_ = iterationsArr[index];
             while (iterations_ < max_iterations && sq_abs < escape_radius_squared) {
-                it_point_real = it_point_real * it_point_real - it_point_imag * it_point_imag;
-                it_point_imag = 2 * it_point_real * it_point_imag;
-                it_point_real += c_real;
-                it_point_imag += c_imag;
+                it_point_real = it_point_real * it_point_real - it_point_imag * it_point_imag + c_real;
+                it_point_imag = 2 * it_point_real * it_point_imag + c_imag;
                 sq_abs = it_point_real * it_point_real + it_point_imag * it_point_imag;
                 iterations_++;
             }
             iterated_points_real[index] = it_point_real;
             iterated_points_imag[index] = it_point_imag;
+            iterationsArr[index] = iterations_;
             squared_absolute_values[index] = sq_abs;
+            index++;
         }
     }
 }
@@ -341,9 +339,9 @@ void color_non_cuda(
     unsigned int iterations;
 
     //printf("thread_index_x: %i | block_index_x: %i | thread_stride_x: %i | block_stride_x: %i\n", thread_index_x, block_index_x, thread_stride_x, block_stride_x);
-    for (int pixel_y = 1; pixel_y < resolution_y; pixel_y++)
+    for (int pixel_y = 0; pixel_y < resolution_y; pixel_y++)
     {
-        for (int pixel_x = 1; pixel_x < resolution_x; pixel_x++)
+        for (int pixel_x = 0; pixel_x < resolution_x; pixel_x++)
         {
             // Calculate the iterations required for a given point to exceed the escape radius.
             index = pixel_y * resolution_y + pixel_x;
@@ -464,8 +462,8 @@ void mandelbrot_iterate_and_color()
                 max_iterations,
                 escape_radius_squared,
                 resolution_x, resolution_y,
-                points_imag,
                 points_real,
+                points_imag,
                 iterated_points_real,
                 iterated_points_imag,
                 squared_absolute_values,
@@ -490,8 +488,8 @@ void mandelbrot_iterate_and_color()
                 max_iterations,
                 escape_radius_squared,
                 resolution_x, resolution_y,
-                points_imag,
                 points_real,
+                points_imag,
                 iterated_points_real,
                 iterated_points_imag,
                 squared_absolute_values,
@@ -522,8 +520,7 @@ void reset_render_objects()
 {
     // This function resets all the variables that are used for rendering the Mandelbrot. 
 
-    // Rebuild the grid of complex numbers based on (new) center and (new) center.
-    build_complex_grid(); 
+
     // Reset the `squared_absolute_values` to zero by allocating the memory space again.
     if (cuda_device_available) {
         cudaFree(squared_absolute_values);
@@ -539,6 +536,8 @@ void reset_render_objects()
         squared_absolute_values = (double*)malloc(resolution_x * resolution_y * sizeof(double));
         iterationsArr = (unsigned int*)malloc(resolution_x * resolution_y * sizeof(unsigned int));
     }
+    // Rebuild the grid of complex numbers based on (new) center_x and (new) center_y.
+    build_complex_grid();
 
     // Reset the amount of rendered iterations to 0. 
     rendered_iterations = 0;
@@ -562,32 +561,30 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         case GLFW_KEY_EQUAL: // zoom in, = is also +
             draw_radius *= 0.75; // zoom in
             reset_render_objects();
-            //mandelbrot_iterate_and_color();
             break;
         case GLFW_KEY_MINUS: 
             draw_radius /= 0.75; // zoom out
             reset_render_objects();
-            //mandelbrot_iterate_and_color();
             break;
         case GLFW_KEY_LEFT:
+            printf("Changing center_x from: %f to: ", center_x);
             center_x -= 0.1 * draw_radius;
+            printf("%f", center_x);
             reset_render_objects();
-            //mandelbrot_iterate_and_color();
             break;
         case GLFW_KEY_RIGHT:
+            printf("Changing center_x from: %f to: ", center_x);
             center_x += 0.1 * draw_radius;
             reset_render_objects();
-            //mandelbrot_iterate_and_color();
+            printf("%f", center_x);
             break;
         case GLFW_KEY_UP:
             center_y += 0.1 * draw_radius;
             reset_render_objects();
-            //mandelbrot_iterate_and_color();
             break;
         case GLFW_KEY_DOWN:
             center_y -= 0.1 * draw_radius;
             reset_render_objects();
-            //mandelbrot_iterate_and_color();
             break;
         case GLFW_KEY_LEFT_BRACKET:
             if (max_iterations > 2 && max_iterations < 10) {
@@ -708,7 +705,7 @@ int main() {
     // Check for CUDA devices:
     int deviceCount;
     cudaGetDeviceCount(&deviceCount);
-    if (deviceCount > 1)
+    if (deviceCount > 0)
     {
         int cuda_device_id;
         cudaGetDevice(&cuda_device_id);
@@ -752,7 +749,7 @@ int main() {
     {
         if (debugging_enabled)
         {
-            Sleep(500); // set max fps to 2
+            Sleep(500); // cap fps to 2
         }
 
         // Render here 
@@ -762,7 +759,7 @@ int main() {
 
         // TODO: make it so that the iterations increase for as long as the center and draw_radius are the same - up to the max of course
         if (rendered_iterations < max_iterations) {
-            printf("rendering %d iterations\n", iterations_per_frame);
+            printf("Rendering %d iterations...\n", iterations_per_frame);
             mandelbrot_iterate_n_and_color(iterations_per_frame);
             rendered_iterations += iterations_per_frame;
             sprintf(window_title, "Max iterations: %d | points[0]: RE: %.32f IM: %.32f", max_iterations, points_real[0], points_imag[0]);
