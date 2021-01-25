@@ -17,7 +17,7 @@ int resolution_x = 1024;
 int resolution_y = 1024;
 double draw_radius = 2.5;
 double escape_radius_squared = 4; // escape_radius = 2^7 = 256
-int max_iterations = 64000;
+int max_iterations = 64;
 
 bool incremental_iteration = false;
 int iterations_per_frame; // value set in main()
