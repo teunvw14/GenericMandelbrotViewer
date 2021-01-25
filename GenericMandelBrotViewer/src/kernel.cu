@@ -64,7 +64,7 @@ __global__ void build_complex_grid_cuda(
 	for (int pixel_y = thread_index; pixel_y < resolution_y; pixel_y += thread_stride)
 	{
 		point_im = center_y + pixel_y * step_y - draw_radius;
-		for (int pixel_x = 0; pixel_x < resolution_x; pixel_x += 1)
+		for (int pixel_x = 0; pixel_x < resolution_x; pixel_x++)
 		{
 			index = pixel_y * resolution_y + pixel_x;
 			point_re = center_x + pixel_x * step_x - draw_radius;
@@ -93,11 +93,13 @@ void build_complex_grid_non_cuda(
     double point_im;
     int index;
     // Start drawing in the bottom left, go row by row.
-    for (int pixel_y = 1; pixel_y < resolution_y; pixel_y++)
+    for (int pixel_y = 0; pixel_y < resolution_y; pixel_y++)
     {
         point_im = center_y + pixel_y * step_y - draw_radius;
         for (int pixel_x = 0; pixel_x < resolution_x; pixel_x++)
         {
+            index = pixel_y * resolution_y + pixel_x;
+            point_re = center_x + pixel_x * step_x - draw_radius;
             points_real[index] = point_re;
             points_imag[index] = point_im;
             iterated_points_real[index] = point_re;
