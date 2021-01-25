@@ -1,10 +1,10 @@
 #include <glfw3.h>
 #include <stdio.h>
+#include <math.h>
 
 // CUDA imports
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
-#include <thrust/complex.h>
 
 // Debugging:
 #include <windows.h>
@@ -29,9 +29,12 @@ int cuda_block_size = 256;
 int cuda_num_blocks = int(ceil(resolution_x * resolution_y / cuda_block_size));
 bool cuda_device_available = false;
 
-// Define variables used to store values for each pixel
-thrust::complex<double>* points;
-thrust::complex<double>* iterated_points;
+// Define variables used to imaginary number values for each pixel
+double* points_real;
+double* points_imag;
+double* iterated_points_real;
+double* iterated_points_imag;
+
 double* squared_absolute_values;
 unsigned char* pixels_rgb;
 unsigned int* iterationsArr;
@@ -41,8 +44,11 @@ __global__ void build_complex_grid_cuda(
     double center_x, double center_y, 
     double draw_radius, 
     int resolution_x, int resolution_y, 
-    thrust::complex<double>* points, 
-    thrust::complex<double>* iterated_points) 
+    double* points_real,
+    double* points_imag,
+    double* iterated_points_real,
+    double* iterated_points_imag
+    )
 {
     // Create a grid of complex numbers around the center point (center_x, center_y).
     
@@ -62,8 +68,10 @@ __global__ void build_complex_grid_cuda(
 		{
 			index = pixel_y * resolution_y + pixel_x;
 			point_re = center_x + pixel_x * step_x - draw_radius;
-			points[index] = thrust::complex<double>(point_re, point_im);
-            iterated_points[index] = thrust::complex<double>(point_re, point_im);
+            points_real[index] = point_re;
+            points_imag[index] = point_im;
+            iterated_points_real[index] = point_re;
+            iterated_points_imag[index] = point_im;
 		}
 	}
 }
@@ -72,8 +80,11 @@ void build_complex_grid_non_cuda(
         double center_x, double center_y,
         double draw_radius,
         int resolution_x, int resolution_y,
-        thrust::complex<double>* points,
-        thrust::complex<double>* iterated_points)
+        double* points_real,
+        double* points_imag,
+        double* iterated_points_real,
+        double* iterated_points_imag
+    )
 {
     // Create a grid of complex numbers around the center point (center_x, center_y).
     double step_y = 2 * draw_radius / resolution_y;
@@ -87,10 +98,10 @@ void build_complex_grid_non_cuda(
         point_im = center_y + pixel_y * step_y - draw_radius;
         for (int pixel_x = 0; pixel_x < resolution_x; pixel_x++)
         {
-            index = pixel_y * resolution_y + pixel_x;
-            point_re = center_x + pixel_x * step_x - draw_radius;
-            points[index] = thrust::complex<double>(point_re, point_im);
-            iterated_points[index] = thrust::complex<double>(point_re, point_im);
+            points_real[index] = point_re;
+            points_imag[index] = point_im;
+            iterated_points_real[index] = point_re;
+            iterated_points_imag[index] = point_im;
         }
     }
 }
@@ -99,8 +110,10 @@ __global__ void mandelbrot_iterate_cuda(
     int max_iterations,
     double escape_radius_squared,
     int resolution_x, int resolution_y,
-    thrust::complex<double>* points,
-    thrust::complex<double>* iterated_points,
+    double* points_real,
+    double* points_imag,
+    double* iterated_points_real,
+    double* iterated_points_imag,
     double* squared_absolute_values,
     unsigned int* iterationsArr
 )
@@ -123,16 +136,20 @@ __global__ void mandelbrot_iterate_cuda(
         {
             // Calculate the iterations required for a given point to exceed the escape radius.
             index = pixel_y * resolution_y + pixel_x;
-            thrust::complex<double> c = points[index];
-            thrust::complex<double> it_point = iterated_points[index];
+            double c_real = points_real[index];
+            double c_imag = points_imag[index];
+            double it_point_real = iterated_points_real[index];
+            double it_point_imag = iterated_points_imag[index];
             double sq_abs = squared_absolute_values[index];
             unsigned int iterations_ = iterationsArr[index];
             while (iterations_ < max_iterations && sq_abs < escape_radius_squared) {
-                it_point = thrust::complex<double>(it_point.real() * it_point.real() - it_point.imag() * it_point.imag(), 2 * it_point.real() * it_point.imag()) + c; // z^2 + c
-                sq_abs = it_point.real() * it_point.real() + it_point.imag() * it_point.imag();
+                it_point_real = it_point_real * it_point_real - it_point_imag * it_point_imag + c_real;
+                it_point_imag = 2 * it_point_real * it_point_imag + c_imag;
+                sq_abs = it_point_real * it_point_real + it_point_imag * it_point_imag;
                 iterations_++;
             }
-            iterated_points[index] = it_point;
+            iterated_points_real[index] = it_point_real;
+            iterated_points_imag[index] = it_point_imag;
             iterationsArr[index] = iterations_;
             squared_absolute_values[index] = sq_abs;
         }
@@ -143,8 +160,10 @@ void mandelbrot_iterate_non_cuda(
     int max_iterations,
     double escape_radius_squared,
     int resolution_x, int resolution_y,
-    thrust::complex<double>* points,
-    thrust::complex<double>* iterated_points,
+    double* points_real,
+    double* points_imag,
+    double* iterated_points_real,
+    double* iterated_points_imag,
     double* squared_absolute_values,
     unsigned int* iterationsArr
 )
@@ -158,17 +177,22 @@ void mandelbrot_iterate_non_cuda(
         {
             // Calculate the iterations required for a given point to exceed the escape radius.
             index = pixel_y * resolution_y + pixel_x;
-            thrust::complex<double> c = points[index];
-            thrust::complex<double> it_point = iterated_points[index];
+            double c_real = points_real[index];
+            double c_imag = points_imag[index];
+            double it_point_real = iterated_points_real[index];
+            double it_point_imag = iterated_points_imag[index];
             double sq_abs = squared_absolute_values[index];
             unsigned int iterations_ = iterationsArr[index];
             while (iterations_ < max_iterations && sq_abs < escape_radius_squared) {
-                it_point = thrust::complex<double>(it_point.real() * it_point.real() - it_point.imag() * it_point.imag(), 2 * it_point.real() * it_point.imag()) + c; // z^2 + c
-                sq_abs = it_point.real() * it_point.real() + it_point.imag() * it_point.imag();
+                it_point_real = it_point_real * it_point_real - it_point_imag * it_point_imag;
+                it_point_imag = 2 * it_point_real * it_point_imag;
+                it_point_real += c_real;
+                it_point_imag += c_imag;
+                sq_abs = it_point_real * it_point_real + it_point_imag * it_point_imag;
                 iterations_++;
             }
-            iterated_points[index] = it_point;
-            iterationsArr[index] = iterations_;
+            iterated_points_real[index] = it_point_real;
+            iterated_points_imag[index] = it_point_imag;
             squared_absolute_values[index] = sq_abs;
         }
     }
@@ -422,11 +446,11 @@ GLFWwindow* window;
 void build_complex_grid()
 {
     if (cuda_device_available) {
-        build_complex_grid_cuda <<< 1, 1024 >>> (center_x, center_y, draw_radius, resolution_x, resolution_y, points, iterated_points);
+        build_complex_grid_cuda <<< 1, 1024 >>> (center_x, center_y, draw_radius, resolution_x, resolution_y, points_real, points_imag, iterated_points_real, iterated_points_imag);
         cudaDeviceSynchronize();
     }
     else if (!(cuda_device_available)){
-        build_complex_grid_non_cuda(center_x, center_y, draw_radius, resolution_x, resolution_y, points, iterated_points);
+        build_complex_grid_non_cuda(center_x, center_y, draw_radius, resolution_x, resolution_y, points_real, points_imag, iterated_points_real, iterated_points_imag);
     }
 }
 
@@ -438,8 +462,10 @@ void mandelbrot_iterate_and_color()
                 max_iterations,
                 escape_radius_squared,
                 resolution_x, resolution_y,
-                points,
-                iterated_points,
+                points_imag,
+                points_real,
+                iterated_points_real,
+                iterated_points_imag,
                 squared_absolute_values,
                 iterationsArr
             );
@@ -462,8 +488,10 @@ void mandelbrot_iterate_and_color()
                 max_iterations,
                 escape_radius_squared,
                 resolution_x, resolution_y,
-                points,
-                iterated_points,
+                points_imag,
+                points_real,
+                iterated_points_real,
+                iterated_points_imag,
                 squared_absolute_values,
                 iterationsArr
             );
@@ -625,15 +653,19 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 
 void allocate_memory() {
     if (cuda_device_available) {
-        cudaMallocManaged(&points, resolution_x * resolution_y * sizeof(thrust::complex<double>));
-        cudaMallocManaged(&iterated_points, resolution_x * resolution_y * sizeof(thrust::complex<double>));
+        cudaMallocManaged(&points_real, resolution_x * resolution_y * sizeof(double));
+        cudaMallocManaged(&points_imag, resolution_x * resolution_y * sizeof(double));
+        cudaMallocManaged(&iterated_points_real, resolution_x * resolution_y * sizeof(double));
+        cudaMallocManaged(&iterated_points_imag, resolution_x * resolution_y * sizeof(double));
         cudaMallocManaged(&squared_absolute_values, resolution_x * resolution_y * sizeof(double));
         cudaMallocManaged(&pixels_rgb, resolution_x * resolution_y * 3 * sizeof(unsigned char));
         cudaMallocManaged(&iterationsArr, resolution_x * resolution_y * sizeof(unsigned int));
     }
     else if (!(cuda_device_available)) {
-        points = (thrust::complex<double>*)malloc(resolution_x * resolution_y * sizeof(thrust::complex<double>));
-        iterated_points = (thrust::complex<double>*)malloc(resolution_x * resolution_y * sizeof(thrust::complex<double>));
+        points_real = (double *)malloc(resolution_x * resolution_y * sizeof(double));
+        points_imag = (double*)malloc(resolution_x * resolution_y * sizeof(double));
+        iterated_points_real = (double*)malloc(resolution_x * resolution_y * sizeof(double));
+        iterated_points_imag = (double*)malloc(resolution_x * resolution_y * sizeof(double));
         squared_absolute_values = (double*)malloc(resolution_x * resolution_y * sizeof(double));
         pixels_rgb = (unsigned char*)malloc(resolution_x * resolution_y * 3 * sizeof(unsigned char));
         iterationsArr = (unsigned int*)malloc(resolution_x * resolution_y * sizeof(unsigned int));
@@ -642,15 +674,19 @@ void allocate_memory() {
 
 void free_the_pointers() {
     if (cuda_device_available) {
-        cudaFree(points);
-        cudaFree(iterated_points);
+        cudaFree(points_real);
+        cudaFree(points_imag);
+        cudaFree(iterated_points_real);
+        cudaFree(iterated_points_imag);
         cudaFree(squared_absolute_values);
         cudaFree(pixels_rgb);
         cudaFree(iterationsArr);
     }
     else if (!(cuda_device_available)) {
-        free(points);
-        free(iterated_points);
+        free(points_real);
+        free(points_imag);
+        free(iterated_points_real);
+        free(iterated_points_imag);
         free(squared_absolute_values);
         free(pixels_rgb);
         free(iterationsArr);
@@ -670,7 +706,7 @@ int main() {
     // Check for CUDA devices:
     int deviceCount;
     cudaGetDeviceCount(&deviceCount);
-    if (deviceCount > 0)
+    if (deviceCount > 1)
     {
         int cuda_device_id;
         cudaGetDevice(&cuda_device_id);
@@ -727,7 +763,7 @@ int main() {
             printf("rendering %d iterations\n", iterations_per_frame);
             mandelbrot_iterate_n_and_color(iterations_per_frame);
             rendered_iterations += iterations_per_frame;
-            sprintf(window_title, "Max iterations: %d | points[0]: RE: %.32f IM: %.32f", max_iterations, points[0].real(), points[0].imag());
+            sprintf(window_title, "Max iterations: %d | points[0]: RE: %.32f IM: %.32f", max_iterations, points_real[0], points_imag[0]);
             glfwSetWindowTitle(window, window_title);
         }
 

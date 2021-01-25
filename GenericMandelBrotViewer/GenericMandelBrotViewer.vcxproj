@@ -67,6 +67,8 @@
       </AdditionalDeps>
       <FastMath>true</FastMath>
       <GenerateRelocatableDeviceCode>false</GenerateRelocatableDeviceCode>
+      <CodeGeneration>compute_61,sm_61</CodeGeneration>
+      <CudaRuntime>Static</CudaRuntime>
     </CudaCompile>
     <CudaLink>
       <AdditionalLibraryDirectories>$(SolutionDir)GenericMandelBrotViewer\Dependencies\GLFW\lib-vc2019;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -97,6 +99,8 @@
       <FastMath>true</FastMath>
       <GenerateRelocatableDeviceCode>false</GenerateRelocatableDeviceCode>
       <GPUDebugInfo>false</GPUDebugInfo>
+      <CodeGeneration>compute_61,sm_61</CodeGeneration>
+      <CudaRuntime>Static</CudaRuntime>
     </CudaCompile>
     <CudaLink>
       <AdditionalLibraryDirectories>$(SolutionDir)GenericMandelBrotViewer\Dependencies\GLFW\lib-vc2019;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
