@@ -4,21 +4,34 @@
 
 // CUDA imports
 #include <cuda_runtime.h>
+#include <cuComplex.h>
 #include <device_launch_parameters.h>
 
 // Debugging:
+#include <sys/timeb.h>
 #include <windows.h>
 bool debugging_enabled = false;
+struct timeb start, end;
+int performance_iterations_total = 512;
+int performance_iterations_done;
+bool start_performance_test_flag = false;
+int max_iterations_store;
+int center_real_store;
+int center_imag_store;
+double draw_radius_store;
 
 // Define starting parameters for the mandelbrot
-double center_x = 0.0;
-double center_y = 0.0;
-int resolution_x = 128;
-int resolution_y = 128;
+double center_real = 0.0;
+double center_imag = 0.0;
+int resolution_x = 1024;
+int resolution_y = 1024;
 double draw_radius = 2.5;
 double escape_radius_squared = 4; // escape_radius = 2^7 = 256
 int max_iterations = 64;
 
+#define MODE_VIEW 0
+#define MODE_PERFORMANCE_TEST 1
+unsigned short application_mode = MODE_VIEW;
 bool incremental_iteration = false;
 int iterations_per_frame; // value set in main()
 int incremental_iterations_per_frame = 4;
@@ -30,27 +43,21 @@ int cuda_num_blocks = int(ceil(resolution_x * resolution_y / cuda_block_size));
 bool cuda_device_available = false;
 
 // Define variables used to imaginary number values for each pixel
-double* points_real;
-double* points_imag;
-double* iterated_points_real;
-double* iterated_points_imag;
-
+cuDoubleComplex* points;
+cuDoubleComplex* iterated_points;
 double* squared_absolute_values;
 unsigned char* pixels_rgb;
 unsigned int* iterationsArr;
 
-
 __global__ void build_complex_grid_cuda(
-    double center_x, double center_y, 
+    double center_real, double center_imag, 
     double draw_radius, 
     int resolution_x, int resolution_y, 
-    double* points_real,
-    double* points_imag,
-    double* iterated_points_real,
-    double* iterated_points_imag
+    cuDoubleComplex* points,
+    cuDoubleComplex* iterated_points
     )
 {
-    // Create a grid of complex numbers around the center point (center_x, center_y).
+    // Create a grid of complex numbers around the center point (center_real, center_imag).
     
     int thread_index = threadIdx.x;
 	int thread_stride = blockDim.x;
@@ -63,30 +70,26 @@ __global__ void build_complex_grid_cuda(
 	// Start drawing in the bottom left, go row by row.
 	for (int pixel_y = thread_index; pixel_y < resolution_y; pixel_y += thread_stride)
 	{
-		point_im = center_y + pixel_y * step_y - draw_radius;
+		point_im = center_imag + pixel_y * step_y - draw_radius;
 		for (int pixel_x = 0; pixel_x < resolution_x; pixel_x++)
 		{
 			index = pixel_y * resolution_y + pixel_x;
-			point_re = center_x + pixel_x * step_x - draw_radius;
-            points_real[index] = point_re;
-            points_imag[index] = point_im;
-            iterated_points_real[index] = point_re;
-            iterated_points_imag[index] = point_im;
+			point_re = center_real + pixel_x * step_x - draw_radius;
+            points[index] = make_cuDoubleComplex(point_re, point_im);
+            iterated_points[index] = make_cuDoubleComplex(point_re, point_im);
 		}
 	}
 }
 
 void build_complex_grid_non_cuda(
-        double center_x, double center_y,
+        double center_real, double center_imag,
         double draw_radius,
         int resolution_x, int resolution_y,
-        double* points_real,
-        double* points_imag,
-        double* iterated_points_real,
-        double* iterated_points_imag
+        cuDoubleComplex* points,
+        cuDoubleComplex* iterated_points
     )
 {
-    // Create a grid of complex numbers around the center point (center_x, center_y).
+    // Create a grid of complex numbers around the center point (center_real, center_imag).
     double step_y = 2 * draw_radius / resolution_y;
     double step_x = 2 * draw_radius / resolution_x;
     double point_re;
@@ -95,15 +98,13 @@ void build_complex_grid_non_cuda(
     // Start drawing in the bottom left, go row by row.
     for (int pixel_y = 0; pixel_y < resolution_y; pixel_y++)
     {
-        point_im = center_y + pixel_y * step_y - draw_radius;
+        point_im = center_imag + pixel_y * step_y - draw_radius;
         for (int pixel_x = 0; pixel_x < resolution_x; pixel_x++)
         {
             index = pixel_y * resolution_y + pixel_x;
-            point_re = center_x + pixel_x * step_x - draw_radius;
-            points_real[index] = point_re;
-            points_imag[index] = point_im;
-            iterated_points_real[index] = point_re;
-            iterated_points_imag[index] = point_im;
+            point_re = center_real + pixel_x * step_x - draw_radius;
+            points[index] = make_cuDoubleComplex(point_re, point_im);
+            iterated_points[index] = make_cuDoubleComplex(point_re, point_im);
         }
     }
 }
@@ -112,10 +113,8 @@ __global__ void mandelbrot_iterate_cuda(
     int max_iterations,
     double escape_radius_squared,
     int resolution_x, int resolution_y,
-    double* points_real,
-    double* points_imag,
-    double* iterated_points_real,
-    double* iterated_points_imag,
+    cuDoubleComplex* points,
+    cuDoubleComplex* iterated_points,
     double* squared_absolute_values,
     unsigned int* iterationsArr
 )
@@ -138,20 +137,17 @@ __global__ void mandelbrot_iterate_cuda(
         {
             // Calculate the iterations required for a given point to exceed the escape radius.
             index = pixel_y * resolution_y + pixel_x;
-            double c_real = points_real[index];
-            double c_imag = points_imag[index];
-            double it_point_real = iterated_points_real[index];
-            double it_point_imag = iterated_points_imag[index];
+            cuDoubleComplex starting_number = points[index];
+            cuDoubleComplex iterated_point = iterated_points[index];
             double sq_abs = squared_absolute_values[index];
             unsigned int iterations_ = iterationsArr[index];
             while (iterations_ < max_iterations && sq_abs < escape_radius_squared) {
-                it_point_real = it_point_real * it_point_real - it_point_imag * it_point_imag + c_real;
-                it_point_imag = 2 * it_point_real * it_point_imag + c_imag;
-                sq_abs = it_point_real * it_point_real + it_point_imag * it_point_imag;
+                iterated_point = make_cuDoubleComplex(iterated_point.x * iterated_point.x - iterated_point.y * iterated_point.y + starting_number.x,
+                    2 * iterated_point.x * iterated_point.y + starting_number.y);
+                sq_abs = iterated_point.x * iterated_point.x + iterated_point.y * iterated_point.y;
                 iterations_++;
             }
-            iterated_points_real[index] = it_point_real;
-            iterated_points_imag[index] = it_point_imag;
+            iterated_points[index] = iterated_point;
             iterationsArr[index] = iterations_;
             squared_absolute_values[index] = sq_abs;
         }
@@ -162,10 +158,8 @@ void mandelbrot_iterate_non_cuda(
     int max_iterations,
     double escape_radius_squared,
     int resolution_x, int resolution_y,
-    double* points_real,
-    double* points_imag,
-    double* iterated_points_real,
-    double* iterated_points_imag,
+    cuDoubleComplex* points,
+    cuDoubleComplex* iterated_points,
     double* squared_absolute_values,
     unsigned int* iterationsArr
 )
@@ -177,23 +171,20 @@ void mandelbrot_iterate_non_cuda(
         for (int pixel_x = 0; pixel_x < resolution_x; pixel_x++)
         {
             // Calculate the iterations required for a given point to exceed the escape radius.
-            double c_real = points_real[index];
-            double c_imag = points_imag[index];
-            double it_point_real = iterated_points_real[index];
-            double it_point_imag = iterated_points_imag[index];
+            index = pixel_y * resolution_y + pixel_x;
+            cuDoubleComplex starting_number = points[index];
+            cuDoubleComplex iterated_point = iterated_points[index];
             double sq_abs = squared_absolute_values[index];
             unsigned int iterations_ = iterationsArr[index];
             while (iterations_ < max_iterations && sq_abs < escape_radius_squared) {
-                it_point_real = it_point_real * it_point_real - it_point_imag * it_point_imag + c_real;
-                it_point_imag = 2 * it_point_real * it_point_imag + c_imag;
-                sq_abs = it_point_real * it_point_real + it_point_imag * it_point_imag;
+                iterated_point = make_cuDoubleComplex(iterated_point.x * iterated_point.x - iterated_point.y * iterated_point.y + starting_number.x,
+                    2 * iterated_point.x * iterated_point.y + starting_number.y);
+                sq_abs = iterated_point.x * iterated_point.x + iterated_point.y * iterated_point.y;
                 iterations_++;
             }
-            iterated_points_real[index] = it_point_real;
-            iterated_points_imag[index] = it_point_imag;
+            iterated_points[index] = iterated_point;
             iterationsArr[index] = iterations_;
             squared_absolute_values[index] = sq_abs;
-            index++;
         }
     }
 }
@@ -440,17 +431,14 @@ void color_non_cuda(
     }
 }
 
-// GLFW
-GLFWwindow* window;
-
 void build_complex_grid()
 {
     if (cuda_device_available) {
-        build_complex_grid_cuda <<< 1, 1024 >>> (center_x, center_y, draw_radius, resolution_x, resolution_y, points_real, points_imag, iterated_points_real, iterated_points_imag);
+        build_complex_grid_cuda <<< 1, 1024 >>> (center_real, center_imag, draw_radius, resolution_x, resolution_y, points, iterated_points);
         cudaDeviceSynchronize();
     }
     else if (!(cuda_device_available)){
-        build_complex_grid_non_cuda(center_x, center_y, draw_radius, resolution_x, resolution_y, points_real, points_imag, iterated_points_real, iterated_points_imag);
+        build_complex_grid_non_cuda(center_real, center_imag, draw_radius, resolution_x, resolution_y, points, iterated_points);
     }
 }
 
@@ -462,10 +450,8 @@ void mandelbrot_iterate_and_color()
                 max_iterations,
                 escape_radius_squared,
                 resolution_x, resolution_y,
-                points_real,
-                points_imag,
-                iterated_points_real,
-                iterated_points_imag,
+                points,
+                iterated_points,
                 squared_absolute_values,
                 iterationsArr
             );
@@ -488,10 +474,8 @@ void mandelbrot_iterate_and_color()
                 max_iterations,
                 escape_radius_squared,
                 resolution_x, resolution_y,
-                points_real,
-                points_imag,
-                iterated_points_real,
-                iterated_points_imag,
+                points,
+                iterated_points,
                 squared_absolute_values,
                 iterationsArr
             );
@@ -536,11 +520,82 @@ void reset_render_objects()
         squared_absolute_values = (double*)malloc(resolution_x * resolution_y * sizeof(double));
         iterationsArr = (unsigned int*)malloc(resolution_x * resolution_y * sizeof(unsigned int));
     }
-    // Rebuild the grid of complex numbers based on (new) center_x and (new) center_y.
+    // Rebuild the grid of complex numbers based on (new) center_real and (new) center_imag.
     build_complex_grid();
 
     // Reset the amount of rendered iterations to 0. 
     rendered_iterations = 0;
+}
+
+
+
+// Performance testing functions below:
+
+void start_performance_test() {
+    printf("Starting performance test.\n");
+    start_performance_test_flag = false;
+    performance_iterations_done = 0;
+    rendered_iterations = 0;
+    reset_render_objects();
+    ftime(&start);
+
+    // Set parameters for test:
+    max_iterations_store = max_iterations;
+    center_real_store = center_real;
+    center_imag_store = center_imag;
+    draw_radius_store = draw_radius;
+}
+
+void setup_performance_iteration() {
+
+    int starting_max_iterations;
+    // Choose a spot to move to, and change starting max_iterations accordingly
+    unsigned short spot = ceil(4.0 * (float) performance_iterations_done / (float) performance_iterations_total);
+    if (spot <= 0) { spot = 1; }
+    switch (spot) {
+    case 1:
+        center_real = -1.769249938555972345710642912303869;
+        center_imag = -0.05694208981877081632294590463061;
+        draw_radius = 1.9 * pow(10, -13);
+        starting_max_iterations = 512;
+        break;
+    case 2:
+        center_real = -0.0452407411;
+        center_imag = 0.9868162204352258;
+        draw_radius = 4.4 * pow(10, -9);
+        starting_max_iterations = 200;
+        break;
+    case 3:
+        center_real = -0.7336438924199521;
+        center_imag = 0.2455211406714035;
+        draw_radius = 4.5 * pow(10, -14);
+        starting_max_iterations = 624;
+        break;
+    case 4:
+        center_real = -0.0452407411;
+        center_imag = 0.9868162204352258;
+        draw_radius = 4.4 * pow(10, -9);
+        starting_max_iterations = 256;
+        break;
+    default:
+        break;
+    }
+    // hack to start iterating from `starting_max_iterations` for each new spot
+    max_iterations = starting_max_iterations + performance_iterations_done * 4 - ((performance_iterations_total - 1) * 4 * (spot - 1)/ 4);
+    printf("\rRendering spot %d with %d iterations.", spot, max_iterations); fflush(stdout);
+
+    reset_render_objects();
+}
+
+int end_performance_test() {
+    ftime(&end);
+    max_iterations = max_iterations_store;
+    center_real = center_real_store;
+    center_imag = center_imag_store;
+    draw_radius = draw_radius_store;
+    reset_render_objects();
+    int elapsed_time = (int)1000.0 * (end.time - start.time) + (end.millitm - start.millitm);
+    return elapsed_time;
 }
 
 
@@ -567,23 +622,21 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             reset_render_objects();
             break;
         case GLFW_KEY_LEFT:
-            printf("Changing center_x from: %f to: ", center_x);
-            center_x -= 0.1 * draw_radius;
-            printf("%f", center_x);
+                center_real -= 0.1 * draw_radius;
+            printf("%f\n", center_real);
             reset_render_objects();
             break;
         case GLFW_KEY_RIGHT:
-            printf("Changing center_x from: %f to: ", center_x);
-            center_x += 0.1 * draw_radius;
+            center_real += 0.1 * draw_radius;
             reset_render_objects();
-            printf("%f", center_x);
+            printf("%f\n", center_real);
             break;
         case GLFW_KEY_UP:
-            center_y += 0.1 * draw_radius;
+            center_imag += 0.1 * draw_radius;
             reset_render_objects();
             break;
         case GLFW_KEY_DOWN:
-            center_y -= 0.1 * draw_radius;
+            center_imag -= 0.1 * draw_radius;
             reset_render_objects();
             break;
         case GLFW_KEY_LEFT_BRACKET:
@@ -633,8 +686,11 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             // Set the close flag of the window to TRUE so that the program exits:
             glfwSetWindowShouldClose(window, GL_TRUE);
             break;
+        case GLFW_KEY_E:
+            // Run a performance test:
+            start_performance_test_flag = true;
+            break;
         }
-
     }
 }
 
@@ -652,19 +708,15 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 
 void allocate_memory() {
     if (cuda_device_available) {
-        cudaMallocManaged(&points_real, resolution_x * resolution_y * sizeof(double));
-        cudaMallocManaged(&points_imag, resolution_x * resolution_y * sizeof(double));
-        cudaMallocManaged(&iterated_points_real, resolution_x * resolution_y * sizeof(double));
-        cudaMallocManaged(&iterated_points_imag, resolution_x * resolution_y * sizeof(double));
+        cudaMallocManaged(&points, resolution_x * resolution_y * sizeof(cuDoubleComplex));
+        cudaMallocManaged(&iterated_points, resolution_x * resolution_y * sizeof(cuDoubleComplex));
         cudaMallocManaged(&squared_absolute_values, resolution_x * resolution_y * sizeof(double));
         cudaMallocManaged(&pixels_rgb, resolution_x * resolution_y * 3 * sizeof(unsigned char));
         cudaMallocManaged(&iterationsArr, resolution_x * resolution_y * sizeof(unsigned int));
     }
     else if (!(cuda_device_available)) {
-        points_real = (double *)malloc(resolution_x * resolution_y * sizeof(double));
-        points_imag = (double*)malloc(resolution_x * resolution_y * sizeof(double));
-        iterated_points_real = (double*)malloc(resolution_x * resolution_y * sizeof(double));
-        iterated_points_imag = (double*)malloc(resolution_x * resolution_y * sizeof(double));
+        points = (cuDoubleComplex *)malloc(resolution_x * resolution_y * sizeof(cuDoubleComplex));
+        iterated_points = (cuDoubleComplex *)malloc(resolution_x * resolution_y * sizeof(cuDoubleComplex));
         squared_absolute_values = (double*)malloc(resolution_x * resolution_y * sizeof(double));
         pixels_rgb = (unsigned char*)malloc(resolution_x * resolution_y * 3 * sizeof(unsigned char));
         iterationsArr = (unsigned int*)malloc(resolution_x * resolution_y * sizeof(unsigned int));
@@ -673,19 +725,15 @@ void allocate_memory() {
 
 void free_the_pointers() {
     if (cuda_device_available) {
-        cudaFree(points_real);
-        cudaFree(points_imag);
-        cudaFree(iterated_points_real);
-        cudaFree(iterated_points_imag);
+        cudaFree(points);
+        cudaFree(iterated_points);
         cudaFree(squared_absolute_values);
         cudaFree(pixels_rgb);
         cudaFree(iterationsArr);
     }
     else if (!(cuda_device_available)) {
-        free(points_real);
-        free(points_imag);
-        free(iterated_points_real);
-        free(iterated_points_imag);
+        free(points);
+        free(iterated_points);
         free(squared_absolute_values);
         free(pixels_rgb);
         free(iterationsArr);
@@ -700,6 +748,52 @@ void setup_incremental_iterations() {
         iterations_per_frame = max_iterations;
     }
 }
+
+void draw_pixels(GLFWwindow* window) {
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glDrawPixels(resolution_x, resolution_y, GL_RGB, GL_UNSIGNED_BYTE, pixels_rgb);
+
+    // Swap front and back buffers 
+    glfwSwapBuffers(window);
+}
+
+int setup_glfw(GLFWwindow* window) {
+    if (!window)
+    {
+        glfwTerminate();
+        return -1;
+    }
+    // Make the window's context current
+    glfwMakeContextCurrent(window);
+    glfwSetKeyCallback(window, key_callback);
+    glfwSetScrollCallback(window, scroll_callback);
+}
+
+
+void run_program_iteration(GLFWwindow* window, char* window_title, int iterations_per_frame) {
+    if (start_performance_test_flag) {
+        application_mode = MODE_PERFORMANCE_TEST;
+        start_performance_test();
+    }
+    if (application_mode == MODE_PERFORMANCE_TEST)
+    {
+        setup_performance_iteration();
+        performance_iterations_done++;
+        if (performance_iterations_done >= performance_iterations_total) {
+            application_mode = MODE_VIEW;
+            printf("\rPerformance test took %d ms.           \n", end_performance_test()); fflush(stdout);
+        }
+    }
+    if ((application_mode == MODE_VIEW || application_mode == MODE_PERFORMANCE_TEST) && rendered_iterations < max_iterations) {
+        mandelbrot_iterate_n_and_color(iterations_per_frame);
+        rendered_iterations += iterations_per_frame;
+        // Rename the window title
+        sprintf(window_title, "Drawing radius: %.32f | Max iterations: %d | center_re %.32f center_im: %.32f", draw_radius, max_iterations, center_real, center_imag);
+        glfwSetWindowTitle(window, window_title);
+    }
+}
+
 
 int main() {
     // Check for CUDA devices:
@@ -725,24 +819,14 @@ int main() {
     mandelbrot_iterate_and_color();
     setup_incremental_iterations();
 
-
     // Initialize the library 
     if (!glfwInit())
         return -1;
-
     // Create a windowed mode window and its OpenGL context 
-    window = glfwCreateWindow(resolution_x, resolution_y, "Hello World", NULL, NULL);
-    char* window_title = (char*)malloc(256);
-    if (!window)
-    {
-        glfwTerminate();
+    GLFWwindow* window = glfwCreateWindow(resolution_x, resolution_y, "Hello World", NULL, NULL);
+    if (!setup_glfw(window))
         return -1;
-    }
-
-    // Make the window's context current
-    glfwMakeContextCurrent(window);
-    glfwSetKeyCallback(window, key_callback);
-    glfwSetScrollCallback(window, scroll_callback);
+    char* window_title = (char*)malloc(1024);
 
     // Loop until the window is closed
     while (!glfwWindowShouldClose(window))
@@ -751,26 +835,9 @@ int main() {
         {
             Sleep(500); // cap fps to 2
         }
-
-        // Render here 
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
-        // TODO: make it so that the iterations increase for as long as the center and draw_radius are the same - up to the max of course
-        if (rendered_iterations < max_iterations) {
-            printf("Rendering %d iterations...\n", iterations_per_frame);
-            mandelbrot_iterate_n_and_color(iterations_per_frame);
-            rendered_iterations += iterations_per_frame;
-            sprintf(window_title, "Max iterations: %d | points[0]: RE: %.32f IM: %.32f", max_iterations, points_real[0], points_imag[0]);
-            glfwSetWindowTitle(window, window_title);
-        }
-
-        glDrawPixels(resolution_x, resolution_y, GL_RGB, GL_UNSIGNED_BYTE, pixels_rgb);
-
-        // Swap front and back buffers 
-        glfwSwapBuffers(window);
-
+        run_program_iteration(window, window_title, iterations_per_frame);
+        
+        draw_pixels(window);
         // Poll for and process events 
         glfwPollEvents();
     }
