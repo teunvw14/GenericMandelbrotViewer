@@ -112,6 +112,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Dependencies\GLFW\include\glfw3.h" />
+    <ClInclude Include="src\controls.h" />
+    <ClInclude Include="src\mandelbrot_image.h" />
+    <ClInclude Include="src\starting_parameters.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="Dependencies\GLFW\lib-vc2019\glfw3.lib" />
