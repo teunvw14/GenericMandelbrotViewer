@@ -39,6 +39,7 @@ bld/
 
 # Visual Studio Code workspace
 .vscode/
+.editorconfig
 
 # Visual Studio 2017 auto generated files
 Generated\ Files/
