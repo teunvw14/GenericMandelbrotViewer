@@ -7,7 +7,7 @@
 #include "global.h"
 
 
-void setup_debugging_performance_parameters()
+void setup_debugging_performance_parameters(void)
 {
     g_debugging_enabled = false;
     g_start_performance_test_flag = false;
@@ -27,7 +27,7 @@ void setup_image_parameters(mandelbrot_image* image)
     image->max_iterations = 64;
 }
 
-void setup_behavioral_parameters()
+void setup_behavioral_parameters(void)
 {
     g_application_mode = MODE_VIEW;
     g_incremental_iteration = false;

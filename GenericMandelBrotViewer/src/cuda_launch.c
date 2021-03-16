@@ -4,7 +4,7 @@
 #include "calculations_non_cuda.h"
 #include "global.h"
 
-void check_cuda_err()
+void check_cuda_err(void)
 {
     cudaError_t code =  cudaGetLastError();
     if (code != cudaSuccess)
