@@ -53,15 +53,17 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>C:\Users\Teun\coding\C++\GenericMandelBrotViewer\GenericMandelBrotViewer\deps\libpng\include;$(SolutionDir)GenericMandelBrotViewer\deps\GLFW\include;$(CudaToolkitIncludeDir);%(Include)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>cudart_static.lib;cudadevrt.lib;cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>cudart_static.lib;cudadevrt.lib;cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;opengl32.lib;libpng16_staticd.lib;zlibstaticd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)GenericMandelBrotViewer\deps\libpng\lib;$(SolutionDir)GenericMandelBrotViewer\deps\zlib\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <Include>C:\Users\Teun\coding\C++\GenericMandelBrotViewer\Dependencies\GLFW\include;%(Include)</Include>
+      <Include>%(Include)</Include>
       <UseHostInclude>true</UseHostInclude>
       <AdditionalDeps>$(ProjectDir)src;%(AdditionalDeps)</AdditionalDeps>
       <FastMath>true</FastMath>
@@ -84,17 +86,19 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>C:\Users\Teun\coding\C++\GenericMandelBrotViewer\GenericMandelBrotViewer\deps\libpng\include;$(SolutionDir)GenericMandelBrotViewer\deps\GLFW\include;$(CudaToolkitIncludeDir);%(Include)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>cudart_static.lib;cudadevrt.lib;cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>cudart_static.lib;cudadevrt.lib;cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;opengl32.lib;libpng16_static.lib;zlibstatic.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)GenericMandelBrotViewer\deps\libpng\lib;$(SolutionDir)GenericMandelBrotViewer\deps\zlib\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <Include>C:\Users\Teun\coding\C++\GenericMandelBrotViewer\Dependencies\GLFW\include;%(Include)</Include>
+      <Include>%(Include)</Include>
       <FastMath>true</FastMath>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
       <GPUDebugInfo>false</GPUDebugInfo>
@@ -111,27 +115,38 @@
     <CudaCompile Include="src\kernel.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Dependencies\GLFW\include\glfw3.h" />
+    <ClInclude Include="deps\GLFW\include\glfw3.h" />
+    <ClInclude Include="deps\libpng\include\png.h" />
+    <ClInclude Include="deps\libpng\include\pngconf.h" />
+    <ClInclude Include="deps\libpng\include\pnginfo.h" />
+    <ClInclude Include="deps\libpng\include\pnglibconf.h" />
     <ClInclude Include="src\application.h" />
     <ClInclude Include="src\calculations_non_cuda.h" />
     <ClInclude Include="src\constants.h" />
-    <ClInclude Include="src\controls.h" />
+    <ClInclude Include="src\util\color_palette.h" />
+    <ClInclude Include="src\util\controls.h" />
     <ClInclude Include="src\cuda_launch.h" />
     <ClInclude Include="src\global.h" />
     <ClInclude Include="src\mandelbrot_image.h" />
-    <ClInclude Include="src\perftest.h" />
+    <ClInclude Include="src\util\create_png.h" />
+    <ClInclude Include="src\util\perftest.h" />
     <ClInclude Include="src\starting_parameters.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <Library Include="Dependencies\GLFW\lib-vc2019\glfw3.lib" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\application.c" />
     <ClCompile Include="src\calculations_non_cuda.c" />
-    <ClCompile Include="src\controls.c" />
+    <ClCompile Include="src\util\color_palette.c" />
+    <ClCompile Include="src\util\controls.c" />
     <ClCompile Include="src\cuda_launch.c" />
     <ClCompile Include="src\main.c" />
-    <ClCompile Include="src\perftest.c" />
+    <ClCompile Include="src\util\perftest.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="deps\GLFW\lib-vc2019\glfw3.lib" />
+    <Library Include="deps\libpng\lib\libpng16_static.lib" />
+    <Library Include="deps\libpng\lib\libpng16_staticd.lib" />
+    <Library Include="deps\zlib\lib\zlibstatic.lib" />
+    <Library Include="deps\zlib\lib\zlibstaticd.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,8 +1,15 @@
 #pragma once
+
+#include <stdio.h>
+
 #include <glfw3.h>
 
-#include "mandelbrot_image.h"
-#include "global.h"
+#include "../mandelbrot_image.h"
+#include "../cuda_launch.h"
+#include "../application.h"
+#include "../global.h"
+#include "color_palette.h"
+#include "create_png.h"
 
 
 // The callbacks are only for setting flags. The inputs are actually processed 
@@ -32,14 +39,16 @@ void window_callback(GLFWwindow* window, int w, int h)
 void process_scroll_input(mandelbrot_image* image, double xoffset, double yoffset)
 {
     if (yoffset > 0) {
-        image->draw_radius *= 0.75; // zoom in
+        image->draw_radius_x *= 0.75; // zoom in
+        image->draw_radius_y *= 0.75;
     }
     else if (yoffset < 0) {
-        image->draw_radius /= 0.75; // zoom out
+        image->draw_radius_x /= 0.75; // zoom out
+        image->draw_radius_y /= 0.75;
     }
 }
 
-void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window)
+void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window, GLFWmonitor* monitor)
 {
     switch (key) {
     case GLFW_KEY_D:
@@ -51,22 +60,24 @@ void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window
         }
         break;
     case GLFW_KEY_EQUAL: // zoom in, = is also +
-        image->draw_radius *= 0.75; // zoom in
+        image->draw_radius_x *= 0.75; // zoom in
+        image->draw_radius_y *= 0.75;
         break;
     case GLFW_KEY_MINUS:
-        image->draw_radius /= 0.75; // zoom out
+        image->draw_radius_x /= 0.75; // zoom out
+        image->draw_radius_y /= 0.75;
         break;
     case GLFW_KEY_LEFT:
-        image->center_real -= 0.1 * image->draw_radius;
+        image->center_real -= 0.1 * image->draw_radius_x;
         break;
     case GLFW_KEY_RIGHT:
-        image->center_real += 0.1 * image->draw_radius;
+        image->center_real += 0.1 * image->draw_radius_x;
         break;
     case GLFW_KEY_UP:
-        image->center_imag += 0.1 * image->draw_radius;
+        image->center_imag += 0.1 * image->draw_radius_y;
         break;
     case GLFW_KEY_DOWN:
-        image->center_imag -= 0.1 * image->draw_radius;
+        image->center_imag -= 0.1 * image->draw_radius_y;
         break;
     case GLFW_KEY_LEFT_BRACKET:
         if (image->max_iterations > 2 && image->max_iterations < 10) {
@@ -117,34 +128,65 @@ void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window
         // Run a performance test:
         g_start_performance_test_flag = true;
         break;
+    case GLFW_KEY_P:
+        g_create_image_flag = true;
+        break;
+    case GLFW_KEY_M:
+        g_coloring_mode += 1;
+        g_coloring_mode %= 3;
+        break;
+    case GLFW_KEY_SPACE: {
+        color_rgb first = palette_pretty.colors[0];
+        for (int i = 0; i < palette_pretty.length; i++) {
+            palette_pretty.colors[i] = palette_pretty.colors[(i + 1) % palette_pretty.length];
+        }
+        break;
+    }
     }
 }
 
-void process_resize(mandelbrot_image* image, GLFWwindow* window, int w, int h)
+void process_resize(mandelbrot_image** image_ptr, mandelbrot_image* image, GLFWwindow* window, GLFWmonitor* monitor, int w, int h)
 {
-    // Round numbers to multiples of 4:
+    int new_width;
+    int new_height;
     int maximum;
     int minimum;
-    int new_width;
-    if (w > h) {
-        maximum = w;
-        minimum = h;
+    int monitor_width, monitor_height;
+    glfwGetMonitorWorkarea(monitor, NULL, NULL, &monitor_width, &monitor_height);
+    printf("Available space - w: %d h: %d\n", monitor_width, monitor_height);
+    if (w >= monitor_width || h >= monitor_height) {
+        printf("Was here\n");
+        new_width = monitor_width - (monitor_width % 4);
+        new_height = monitor_height - (monitor_height % 4);
+        image->draw_radius_x *= (double) new_width / (double) new_height;
     }
     else {
-        maximum = h;
-        minimum = w;
+        if (w > h) {
+            maximum = w;
+            minimum = h;
+        }
+        else {
+            maximum = h;
+            minimum = w;
+        }
+        // Round numbers to multiples of 4:
+        if (w <= image->resolution_x && h <= image->resolution_y) {
+            // This happens when the user resizes by just dragging
+            // the bottom, top or sides; only w or h decreases so the
+            // relevant size is the minimum.
+            new_width = minimum - (minimum % 4);
+        }
+        else {
+            new_width = maximum - (maximum % 4);
+        }
+        // Image has to be square
+        new_height = new_width; 
+        image->draw_radius_x = image->draw_radius_y;
     }
-    if (w <= image->resolution_x && h <= image->resolution_y) {
-        // This happens when the user resizes by just dragging
-        // the bottom, top or sides; only w or h decreases so the
-        // relevant size is the minimum.
-        new_width = minimum - (minimum % 4);
-    }
-    else {
-        new_width = maximum - (maximum % 4);
-    }
-    int new_height = new_width; // Image has to be square
+    printf("Resizing to w: %d h: %d\n", new_width, new_height);
     image->resolution_x = new_width;
     image->resolution_y = new_height;
     glfwSetWindowSize(window, new_width, new_height);
+    reallocate_memory(image_ptr);
+    reset_render_objects(image);
 }

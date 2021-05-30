@@ -8,7 +8,8 @@ typedef struct mandelbrot_image {
     int max_iterations;
     double center_real;
     double center_imag;
-    double draw_radius;
+    double draw_radius_x;
+    double draw_radius_y;
     double escape_radius_squared;
     cuDoubleComplex* points;
     //cuDoubleComplex** points_ptr;

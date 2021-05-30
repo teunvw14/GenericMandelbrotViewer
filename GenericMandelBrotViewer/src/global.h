@@ -17,11 +17,14 @@ struct timeb g_start, g_end;
 int g_max_iterations_store;
 int g_center_real_store;
 int g_center_imag_store;
-double g_draw_radius_store;
+double g_draw_radius_x_store;
+double g_draw_radius_y_store;
 
 // Behavioral parameters
 unsigned short g_application_mode;
+unsigned short g_coloring_mode;
 bool g_incremental_iteration;
+bool g_create_image_flag;
 int g_iterations_per_frame;
 int g_incremental_iterations_per_frame;
 int g_rendered_iterations;

@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <sys/timeb.h>
 
-#include "global.h"
-#include "cuda_launch.h"
-#include "application.h"
-#include "mandelbrot_image.h"
+#include "../global.h"
+#include "../cuda_launch.h"
+#include "../application.h"
+#include "../mandelbrot_image.h"
 
 
 // Performance testing functions below:
@@ -21,7 +21,8 @@ void start_performance_test(mandelbrot_image* image)
     g_max_iterations_store = image->max_iterations;
     g_center_real_store = image->center_real;
     g_center_imag_store = image->center_imag;
-    g_draw_radius_store = image->draw_radius;
+    g_draw_radius_x_store = image->draw_radius_x;
+    g_draw_radius_y_store = image->draw_radius_y;
 }
 
 void setup_performance_iteration(mandelbrot_image* image)
@@ -36,25 +37,29 @@ void setup_performance_iteration(mandelbrot_image* image)
     case 1:
         image->center_real = -1.769249938555972345710642912303869;
         image->center_imag = -0.05694208981877081632294590463061;
-        image->draw_radius = 1.9 * pow(10, -13);
+        image->draw_radius_x = 1.9 * pow(10, -13);
+        image->draw_radius_y = image->draw_radius_x;
         starting_max_iterations = 512;
         break;
     case 2:
         image->center_real = -0.0452407411;
         image->center_imag = 0.9868162204352258;
-        image->draw_radius = 4.4 * pow(10, -9);
+        image->draw_radius_x = 4.4 * pow(10, -9);
+        image->draw_radius_y = image->draw_radius_x;
         starting_max_iterations = 128;
         break;
     case 3:
         image->center_real = -0.7336438924199521;
         image->center_imag = 0.2455211406714035;
-        image->draw_radius = 4.5 * pow(10, -14);
+        image->draw_radius_x = 4.5 * pow(10, -14);
+        image->draw_radius_y = image->draw_radius_x;
         starting_max_iterations = 624;
         break;
     case 4:
         image->center_real = -0.0452407411;
         image->center_imag = 0.9868162204352258;
-        image->draw_radius = 4.4 * pow(10, -9);
+        image->draw_radius_x = 4.4 * pow(10, -9);
+        image->draw_radius_y = image->draw_radius_x;
         starting_max_iterations = 128;
         break;
     default:
@@ -74,7 +79,8 @@ int end_performance_test(mandelbrot_image* image)
     image->max_iterations = g_max_iterations_store;
     image->center_real = g_center_real_store;
     image->center_imag = g_center_imag_store;
-    image->draw_radius = g_draw_radius_store;
+    image->draw_radius_x = g_draw_radius_x_store;
+    image->draw_radius_y = g_draw_radius_y_store;
     reset_render_objects(image);
     int elapsed_time = (int)1000.0 * (g_end.time - g_start.time) + (g_end.millitm - g_start.millitm);
     return elapsed_time;

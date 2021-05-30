@@ -1,5 +1,5 @@
 #pragma once
-#include "mandelbrot_image.h"
+#include "../mandelbrot_image.h"
 
 // Performance testing functions below:
 void start_performance_test(mandelbrot_image* image);
