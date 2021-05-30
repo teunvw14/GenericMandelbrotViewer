@@ -67,7 +67,7 @@ void allocate_memory(mandelbrot_image** image_ptr)
         // mandelbrot_image_ptr struct. The reason their type is char** instead of just char* is   
         // that cudaMallocManaged takes a pointer to a pointer (void**) as the first argument.
         char* byte_pointer = (char*)(*image_ptr);
-        char** points_ptr = byte_pointer + ((size_t) &((*image_ptr)->points) - (size_t)(*image_ptr)); // 4 bytes "extra" because of struct padding, see https://stackoverflow.com/a/2749096/9069452
+        char** points_ptr = byte_pointer + ((size_t) &((*image_ptr)->points) - (size_t)(*image_ptr));
         char** iterated_points_ptr = byte_pointer + ((size_t) & ((*image_ptr)->iterated_points) - (size_t)(*image_ptr));
         char** squared_absolute_values_ptr = byte_pointer + ((size_t) & ((*image_ptr)->squared_absolute_values) - (size_t)(*image_ptr));
         char** pixels_rgb_ptr = byte_pointer + ((size_t) & ((*image_ptr)->pixels_rgb) - (size_t)(*image_ptr));
