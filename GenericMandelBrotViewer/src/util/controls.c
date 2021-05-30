@@ -86,7 +86,7 @@ void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window
         else if (image->max_iterations >= 10) {
             image->max_iterations *= 0.9;
         }
-        printf("Max iterations now at: %d\n", image->max_iterations);
+        //printf("Max iterations now at: %d\n", image->max_iterations);
         if (g_incremental_iteration) {
             g_iterations_per_frame = g_incremental_iterations_per_frame;
         }
@@ -101,7 +101,7 @@ void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window
         else if (image->max_iterations >= 10) {
             image->max_iterations /= 0.9;
         }
-        printf("Max iterations now at: %d\n", image->max_iterations);
+        //printf("Max iterations now at: %d\n", image->max_iterations);
         if (g_incremental_iteration) {
             g_iterations_per_frame = g_incremental_iterations_per_frame;
         }
@@ -153,9 +153,7 @@ void process_resize(mandelbrot_image** image_ptr, mandelbrot_image* image, GLFWw
     int minimum;
     int monitor_width, monitor_height;
     glfwGetMonitorWorkarea(monitor, NULL, NULL, &monitor_width, &monitor_height);
-    printf("Available space - w: %d h: %d\n", monitor_width, monitor_height);
     if (w >= monitor_width || h >= monitor_height) {
-        printf("Was here\n");
         new_width = monitor_width - (monitor_width % 4);
         new_height = monitor_height - (monitor_height % 4);
         image->draw_radius_x *= (double) new_width / (double) new_height;
@@ -183,7 +181,7 @@ void process_resize(mandelbrot_image** image_ptr, mandelbrot_image* image, GLFWw
         new_height = new_width; 
         image->draw_radius_x = image->draw_radius_y;
     }
-    printf("Resizing to w: %d h: %d\n", new_width, new_height);
+    //printf("Resizing to w: %d h: %d\n", new_width, new_height);
     image->resolution_x = new_width;
     image->resolution_y = new_height;
     glfwSetWindowSize(window, new_width, new_height);

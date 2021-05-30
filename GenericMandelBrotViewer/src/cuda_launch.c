@@ -27,7 +27,6 @@ void build_complex_grid(mandelbrot_image* image)
 {
     if (g_cuda_device_available) {
         launch_build_complex_grid_cuda(g_cuda_num_blocks, g_cuda_block_size, image);
-        check_cuda_err();
         cudaDeviceSynchronize();
     } else if (!(g_cuda_device_available)) {
         build_complex_grid_non_cuda(image);
@@ -36,9 +35,7 @@ void build_complex_grid(mandelbrot_image* image)
 
 void mandelbrot_color(mandelbrot_image* image) {
     if (g_cuda_device_available) {
-        //launch_color_cuda(g_cuda_num_blocks, g_cuda_block_size, image, g_coloring_mode);
-        color_non_cuda(image);
-        cudaDeviceSynchronize();
+        launch_color_cuda(g_cuda_num_blocks, g_cuda_block_size, image, g_coloring_mode);
     }
     else {
         color_non_cuda(image);
@@ -48,7 +45,6 @@ void mandelbrot_color(mandelbrot_image* image) {
 void mandelbrot_iterate(mandelbrot_image* image) {
     if (g_cuda_device_available) {
         launch_mandelbrot_iterate_cuda(g_cuda_num_blocks, g_cuda_block_size, image);
-        cudaDeviceSynchronize();
     }
     else {
         mandelbrot_iterate_non_cuda(image);
@@ -57,10 +53,7 @@ void mandelbrot_iterate(mandelbrot_image* image) {
 
 void mandelbrot_iterate_n(mandelbrot_image* image, int n) {
     if (g_cuda_device_available) {
-        for (int i = 0; i < n; i++) {
-            launch_mandelbrot_iterate_cuda(g_cuda_num_blocks, g_cuda_block_size, image);
-        }
-        cudaDeviceSynchronize();
+        launch_mandelbrot_iterate_cuda(g_cuda_num_blocks, g_cuda_block_size, image);
     }
     else {
         mandelbrot_iterate_non_cuda(image);
@@ -78,6 +71,9 @@ void mandelbrot_iterate_n_and_color(mandelbrot_image* image, int n)
 {
     mandelbrot_iterate_n(image, n);
     mandelbrot_color(image);
+    if (g_cuda_device_available) {
+        cudaDeviceSynchronize();
+    }
 }
 
 // Reset all the variables that are used for rendering the Mandelbrot

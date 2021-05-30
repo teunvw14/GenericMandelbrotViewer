@@ -64,15 +64,14 @@ void allocate_memory(mandelbrot_image** image_ptr)
     if (g_cuda_device_available) {
         // Hack to get the memory address of the pointers.
         // We create a bunch of char** variables that hold the addresses of the pointers inside the 
-        // mandelbrot_image_ptr struct, so that we can increment them by the sizes in bytes of the 
-        // components of the struct. The reason their type is char** instead of just char* is 
-        // that cudaMallocManaged takes void** as the first argument.
+        // mandelbrot_image_ptr struct. The reason their type is char** instead of just char* is   
+        // that cudaMallocManaged takes a pointer to a pointer (void**) as the first argument.
         char* byte_pointer = (char*)(*image_ptr);
-        char** points_ptr = byte_pointer + 4 * sizeof(double) + 4 * sizeof(int); // 4 bytes "extra" because of struct padding, see https://stackoverflow.com/a/2749096/9069452
-        char** iterated_points_ptr = (char*)points_ptr + sizeof(cuDoubleComplex*);
-        char** squared_absolute_values_ptr = (char*)iterated_points_ptr + sizeof(cuDoubleComplex*);
-        char** pixels_rgb_ptr = (char*)squared_absolute_values_ptr + sizeof(double*);
-        char** iterationsArr_ptr = (char*)pixels_rgb_ptr + sizeof(char*);
+        char** points_ptr = byte_pointer + ((size_t) &((*image_ptr)->points) - (size_t)(*image_ptr)); // 4 bytes "extra" because of struct padding, see https://stackoverflow.com/a/2749096/9069452
+        char** iterated_points_ptr = byte_pointer + ((size_t) & ((*image_ptr)->iterated_points) - (size_t)(*image_ptr));
+        char** squared_absolute_values_ptr = byte_pointer + ((size_t) & ((*image_ptr)->squared_absolute_values) - (size_t)(*image_ptr));
+        char** pixels_rgb_ptr = byte_pointer + ((size_t) & ((*image_ptr)->pixels_rgb) - (size_t)(*image_ptr));
+        char** iterationsArr_ptr = byte_pointer + ((size_t) & ((*image_ptr)->iterationsArr) - (size_t)(*image_ptr));
         cudaMallocManaged(points_ptr, total_pixels * sizeof(cuDoubleComplex), cudaMemAttachGlobal);
         cudaMallocManaged(iterated_points_ptr, total_pixels * sizeof(cuDoubleComplex), cudaMemAttachGlobal);
         cudaMallocManaged(squared_absolute_values_ptr, total_pixels * sizeof(double), cudaMemAttachGlobal);
@@ -93,8 +92,6 @@ void allocate_memory(mandelbrot_image** image_ptr)
         exit(-1);
     }
 }
-
-
 
 
 void reallocate_memory(mandelbrot_image** image_ptr)
@@ -174,9 +171,9 @@ void create_highres_image(mandelbrot_image** image_ptr, mandelbrot_image* image,
     image->resolution_y = res_y;
     reallocate_memory(image_ptr);
     reset_render_objects(image);
-    //mandelbrot_iterate_n_and_color(image, image->max_iterations);
+    mandelbrot_iterate_n_and_color(image, image->max_iterations);
     printf("Creating image `mandelbrot.png`.\n");
-    //create_png("mandelbrot.png", image->resolution_x, image->resolution_y, image->pixels_rgb);
+    create_png("mandelbrot.png", image->resolution_x, image->resolution_y, image->pixels_rgb);
     printf("Done creating image.\n");
     image->resolution_x = resolution_x_temp;
     image->resolution_y = resolution_y_temp;
