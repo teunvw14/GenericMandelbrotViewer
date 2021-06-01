@@ -129,6 +129,7 @@
     <ClInclude Include="src\global.h" />
     <ClInclude Include="src\mandelbrot_image.h" />
     <ClInclude Include="src\util\create_png.h" />
+    <ClInclude Include="src\util\hsv_to_rgb.h" />
     <ClInclude Include="src\util\perftest.h" />
     <ClInclude Include="src\starting_parameters.h" />
   </ItemGroup>
@@ -139,6 +140,7 @@
     <ClCompile Include="src\util\controls.c" />
     <ClCompile Include="src\cuda_launch.c" />
     <ClCompile Include="src\main.c" />
+    <ClCompile Include="src\util\hsv_to_rgb.c" />
     <ClCompile Include="src\util\perftest.c" />
   </ItemGroup>
   <ItemGroup>

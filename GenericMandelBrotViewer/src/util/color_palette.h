@@ -13,12 +13,12 @@ void set_color_rgb(color_rgb* color, unsigned char r, unsigned char g, unsigned 
 color_rgb lerp_color(color_rgb start_color, color_rgb end_color, float factor);
 
 // Some simple colors
-color_rgb black;
-color_rgb white;
-color_rgb red;
-color_rgb green;
-color_rgb blue;
-color_rgb blue_dark;
+const color_rgb black;
+const color_rgb white;
+const color_rgb red;
+const color_rgb green;
+const color_rgb blue;
+const color_rgb blue_dark;
 
 typedef struct simple_palette {
 	color_rgb start_color;

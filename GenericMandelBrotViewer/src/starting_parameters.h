@@ -5,6 +5,7 @@
 #include "mandelbrot_image.h"
 #include "constants.h"
 #include "global.h"
+#include "util/color_palette.h"
 
 
 void setup_debugging_performance_parameters(void)
@@ -32,6 +33,7 @@ void setup_behavioral_parameters(void)
 {
     g_application_mode = MODE_VIEW;
     g_coloring_mode = COLORING_SIMPLE;
+    g_coloring_palette = palette_pretty;
     g_incremental_iteration = false;
     g_create_image_flag = false;
     g_iterations_per_frame = 1; // also set later based on whether incremental iterations are enabled.

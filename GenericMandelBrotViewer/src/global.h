@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <sys/timeb.h>
 
+#include "util/color_palette.h"
 
 // Cuda
 int g_cuda_block_size;
@@ -23,6 +24,7 @@ double g_draw_radius_y_store;
 // Behavioral parameters
 unsigned short g_application_mode;
 unsigned short g_coloring_mode;
+palette g_coloring_palette;
 bool g_incremental_iteration;
 bool g_create_image_flag;
 int g_iterations_per_frame;

@@ -25,7 +25,7 @@ int main()
         struct cudaDeviceProp cuda_device_properties;
         cudaGetDeviceProperties(&cuda_device_properties, cuda_device_id);
         g_cuda_device_available = true;
-        printf("Using CUDA device: %s\n", cuda_device_properties.name);
+        printf("Using CUDA device '%s'\n", cuda_device_properties.name);
         cudaMallocManaged(&image, sizeof(mandelbrot_image), cudaMemAttachGlobal);
     } else {
         g_cuda_device_available = false;

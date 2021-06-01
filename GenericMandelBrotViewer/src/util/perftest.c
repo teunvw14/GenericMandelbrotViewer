@@ -85,4 +85,3 @@ int end_performance_test(mandelbrot_image* image)
     int elapsed_time = (int)1000.0 * (g_end.time - g_start.time) + (g_end.millitm - g_start.millitm);
     return elapsed_time;
 }
-

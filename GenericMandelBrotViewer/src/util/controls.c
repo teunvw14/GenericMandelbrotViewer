@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <glfw3.h>
 
@@ -140,6 +141,21 @@ void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window
         for (int i = 0; i < palette_pretty.length; i++) {
             palette_pretty.colors[i] = palette_pretty.colors[(i + 1) % palette_pretty.length];
         }
+        break;
+    }
+    case GLFW_KEY_ENTER: {
+        printf("Current coordinates: (%.16f, %.16f)\n", image->center_real, image->center_imag);
+        char new_x_str[32];
+        char new_y_str[32];
+        float new_x, new_y;
+        printf("New x coordinate: ");
+        fgets(new_x_str, 32, stdin);
+        printf("New y coordinate: ");
+        fgets(new_y_str, 32, stdin);
+        new_x = strtod(new_x_str, NULL);
+        new_y = strtod(new_y_str, NULL);
+        image->center_real = new_x;
+        image->center_imag = new_y;
         break;
     }
     }

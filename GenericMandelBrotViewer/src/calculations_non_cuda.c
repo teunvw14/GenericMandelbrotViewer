@@ -4,6 +4,7 @@
 #include "constants.h"
 #include "global.h"
 #include "util/color_palette.h"
+#include "util/hsv_to_rgb.h"
 
 
 void build_complex_grid_non_cuda(mandelbrot_image* image)
@@ -66,126 +67,99 @@ void mandelbrot_iterate_non_cuda(mandelbrot_image* image)
     }
 }
 
-
-void color_non_cuda(mandelbrot_image* image)
-{
-    // Do some coloring!
+void color_simple_non_cuda(mandelbrot_image* image) {
     int index;
     unsigned int iterations;
 
     for (int pixel_y = 0; pixel_y < image->resolution_y; pixel_y++) {
         for (int pixel_x = 0; pixel_x < image->resolution_x; pixel_x++) {
             // Calculate the iterations required for a given point to exceed the escape radius.
+            index = pixel_y * image->resolution_x + pixel_x;
+            iterations = (image->iterationsArr)[index];
+            color_rgb pixel_color = white;
+            if (iterations >= image->max_iterations) {
+                pixel_color = black;
+            }
+            // Set the RGB values in the array
+            (image->pixels_rgb)[3 * index + 0] = pixel_color.r; // Red value
+            (image->pixels_rgb)[3 * index + 1] = pixel_color.g; // Green value
+            (image->pixels_rgb)[3 * index + 2] = pixel_color.b; // Blue value
+        }
+    }
+}
+
+void color_palette_non_cuda(mandelbrot_image* image, palette plt) {
+    int index;
+    unsigned int iterations;
+    color_rgb pixel_color;
+
+    for (int pixel_y = 0; pixel_y < image->resolution_y; pixel_y++) {
+        for (int pixel_x = 0; pixel_x < image->resolution_x; pixel_x++) {
             // Calculate the iterations required for a given point to exceed the escape radius.
             index = pixel_y * image->resolution_x + pixel_x;
             iterations = (image->iterationsArr)[index];
-            if (iterations == image->max_iterations) {
-                // Values that don't escape are colored black:
-                (image->pixels_rgb)[3 * index + 0] = 0; // Red value
-                (image->pixels_rgb)[3 * index + 1] = 0; // Green value
-                (image->pixels_rgb)[3 * index + 2] = 0; // Blue value
+            pixel_color = black;
+            if (iterations < image->max_iterations) {
+                palette p = palette_pretty;
+                int color_index = iterations % p.length;
+                // smooth color to make it a little easier on the eyes
+                int next_color_index = (color_index + 1) % p.length;
+                float escape_size = (float)(image->squared_absolute_values[index]);
+                float lerp_factor = 1 - log2f(log(escape_size));
+                pixel_color = lerp_color(p.colors[color_index], p.colors[next_color_index], lerp_factor);
             }
-            else {
-                color_rgb pixel_color;
-                if (g_coloring_mode == COLORING_SIMPLE) {
-                    simple_palette hacker_green_palette;
-                    hacker_green_palette.start_color = black;
-                    hacker_green_palette.end_color = white;
-                    float factor = sqrtf((float)iterations / (float)image->max_iterations);
-                    pixel_color = lerp_color(hacker_green_palette.start_color, hacker_green_palette.end_color, factor);
-                }
-                else if (g_coloring_mode == COLORING_PALETTE) {
-                    palette p = palette_pretty;
-                    int color_index = iterations % p.length;
-                    int next_color_index = (color_index + 1) % p.length;
-                    float escape_size = (float)(image->squared_absolute_values[index]);
-                    float lerp_factor = 1 - log2f(log(escape_size));
-                    if (lerp_factor > 1) lerp_factor = 1;
-                    if (lerp_factor < 0) lerp_factor = 0;
-                    pixel_color = lerp_color(p.colors[color_index], p.colors[next_color_index], lerp_factor);
-                }
-                else if (g_coloring_mode == COLORING_SMOOTH) {
-                    float f_iterations = (float)iterations;
-                    float f_max_iterations = (float)image->max_iterations;
-                    // Smooth colors!
-                    float escape_size = (float)(image->squared_absolute_values[index]);
-                    float smoothed_iterations = iterations + 1 - log2f(log(escape_size));
-                    float H = 360 * smoothed_iterations / f_max_iterations;
-                    float S = .65;
-                    float V = 1;
-
-                    if (H > 360) H = 360;
-                    if (H < 0) H = 0;
-                    // HSV to RGB conversion, yay!
-                    // TODO: look into edge cases for H and why they happen.
-                    //if (H > 360 || H < 0 || S > 1 || S < 0 || V > 1 || V < 0)
-                    //{
-                    //printf("The given HSV values are not in valid range.\n H: %f S: %.2f, V: %.2f\n", H, S, V);
-                    //printf("Iterations: %f\n", f_iterations);
-                    //}
-                    float h = H / 60;
-                    float C = S * V;
-                    float X = C * (1 - fabsf((fmodf(h, 2) - 1)));
-                    float m = V - C;
-                    float r, g, b;
-                    if (h >= 0 && h <= 1) {
-                        r = C;
-                        g = X;
-                        b = 0;
-                    }
-                    else if (h > 1 && h < 2) {
-                        r = X;
-                        g = C;
-                        b = 0;
-                    }
-                    else if (h > 2 && h <= 3) {
-                        r = 0;
-                        g = C;
-                        b = X;
-                    }
-                    else if (h > 3 && h <= 4) {
-                        r = 0;
-                        g = X;
-                        b = C;
-                    }
-                    else if (h > 4 && h <= 5) {
-                        r = X;
-                        g = 0;
-                        b = C;
-                    }
-                    else if (h > 5 && h <= 6) {
-                        r = C;
-                        g = 0;
-                        b = X;
-                    }
-                    else { // color white to make stand out
-                        r = 1 - m;
-                        g = 1 - m;
-                        b = 1 - m;
-                    }
-                    unsigned char red = (r + m) * 255;
-                    unsigned char green = (g + m) * 255;
-                    unsigned char blue = (b + m) * 255;
-                    // End of conversion.
-
-                    // Cap RGB values to 255
-                    if (red > 255) {
-                        red = 255;
-                    }
-                    if (green > 255) {
-                        green = 255;
-                    }
-                    if (blue > 255) {
-                        blue = 255;
-                    }
-                    pixel_color.r = red;
-                    pixel_color.g = green;
-                    pixel_color.b = blue;
-                }
-                (image->pixels_rgb)[3 * index + 0] = pixel_color.r; // Red value
-                (image->pixels_rgb)[3 * index + 1] = pixel_color.g; // Green value
-                (image->pixels_rgb)[3 * index + 2] = pixel_color.b; // Blue value
-            }
+            // Set the RGB values in the array
+            (image->pixels_rgb)[3 * index + 0] = pixel_color.r; // Red value
+            (image->pixels_rgb)[3 * index + 1] = pixel_color.g; // Green value
+            (image->pixels_rgb)[3 * index + 2] = pixel_color.b; // Blue value
         }
+    }
+}
+
+void color_smooth_non_cuda(mandelbrot_image* image)
+{
+    // Do some smooth coloring!
+    int index;
+    unsigned int iterations;
+    color_rgb pixel_color;
+
+    for (int pixel_y = 0; pixel_y < image->resolution_y; pixel_y++) {
+        for (int pixel_x = 0; pixel_x < image->resolution_x; pixel_x++) {
+            // Calculate the iterations required for a given point to exceed the escape radius.
+            index = pixel_y * image->resolution_x + pixel_x;
+            iterations = (image->iterationsArr)[index];
+            pixel_color = black;
+            if (iterations < image->max_iterations) {
+                float f_iterations = (float)iterations;
+                float f_max_iterations = (float)image->max_iterations;
+                // Smooth colors!
+                float escape_size = (float)(image->squared_absolute_values[index]);
+                float smoothed_iterations = iterations + 1 - log2f(log(escape_size));
+                float H = 360 * smoothed_iterations / f_max_iterations;
+                float S = .7;
+                float V = 1;
+
+                if (H > 360) H = 360;
+                if (H < 0) H = 0;
+                pixel_color = hsv_to_rgb(H, S, V);
+            }
+            (image->pixels_rgb)[3 * index + 0] = pixel_color.r; // Red value
+            (image->pixels_rgb)[3 * index + 1] = pixel_color.g; // Green value
+            (image->pixels_rgb)[3 * index + 2] = pixel_color.b; // Blue value
+        }
+    }
+}
+
+void color_non_cuda(mandelbrot_image* image, palette plt) {
+    switch (g_coloring_mode) {
+    case COLORING_SIMPLE:
+        color_simple_non_cuda(image);
+        break;
+    case COLORING_PALETTE:
+        color_palette_non_cuda(image, plt);
+        break;
+    case COLORING_SMOOTH:
+        color_smooth_non_cuda(image);
+        break;
     }
 }

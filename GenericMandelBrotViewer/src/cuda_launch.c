@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "mandelbrot_image.h"
 #include "calculations_non_cuda.h"
+#include "constants.h"
 #include "global.h"
 
 void check_cuda_err(void)
@@ -20,7 +21,8 @@ void check_cuda_err(void)
 extern void launch_build_complex_grid_cuda(int num_blocks, int block_size, mandelbrot_image* image);
 extern void launch_reset_render_arrays_cuda(int num_blocks, int block_size, mandelbrot_image* image);
 extern void launch_mandelbrot_iterate_cuda(int num_blocks, int block_size, mandelbrot_image* image);
-//extern void launch_color_cuda(int num_blocks, int block_size, mandelbrot_image* image, int coloring_mode);
+extern void launch_color_smooth_cuda(int num_blocks, int block_size, mandelbrot_image* image);
+extern void launch_color_palette_cuda(int num_blocks, int block_size, mandelbrot_image* image, palette plt);
 
 // Build up a grid of complex numbers to iterate
 void build_complex_grid(mandelbrot_image* image)
@@ -33,12 +35,30 @@ void build_complex_grid(mandelbrot_image* image)
     }
 }
 
+void color_cuda(mandelbrot_image* image, palette plt) {
+    switch (g_coloring_mode) {
+    case COLORING_PALETTE:
+        printf("a");
+        launch_color_palette_cuda(g_cuda_num_blocks, g_cuda_block_size, image, plt);
+        break;
+    case COLORING_SMOOTH:
+        printf("b");
+        launch_color_smooth_cuda(g_cuda_num_blocks, g_cuda_block_size, image);
+        break;
+    default:
+        printf("c");
+        launch_color_palette_cuda(g_cuda_num_blocks, g_cuda_block_size, image, plt);
+        break;
+    }
+
+}
+
 void mandelbrot_color(mandelbrot_image* image) {
     if (g_cuda_device_available) {
-        launch_color_cuda(g_cuda_num_blocks, g_cuda_block_size, image, g_coloring_mode);
+        color_cuda(image, g_coloring_palette);
     }
     else {
-        color_non_cuda(image);
+        color_non_cuda(image, g_coloring_palette);
     }
 }
 
