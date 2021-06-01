@@ -62,21 +62,11 @@ void allocate_memory(mandelbrot_image** image_ptr)
 {
     size_t total_pixels = (size_t)(*image_ptr)->resolution_x * (*image_ptr)->resolution_y;
     if (g_cuda_device_available) {
-        // Hack to get the memory address of the pointers.
-        // We create a bunch of char** variables that hold the addresses of the pointers inside the 
-        // mandelbrot_image_ptr struct. The reason their type is char** instead of just char* is   
-        // that cudaMallocManaged takes a pointer to a pointer (void**) as the first argument.
-        char* byte_pointer = (char*)(*image_ptr);
-        char** points_ptr = byte_pointer + ((size_t) &((*image_ptr)->points) - (size_t)(*image_ptr));
-        char** iterated_points_ptr = byte_pointer + ((size_t) & ((*image_ptr)->iterated_points) - (size_t)(*image_ptr));
-        char** squared_absolute_values_ptr = byte_pointer + ((size_t) & ((*image_ptr)->squared_absolute_values) - (size_t)(*image_ptr));
-        char** pixels_rgb_ptr = byte_pointer + ((size_t) & ((*image_ptr)->pixels_rgb) - (size_t)(*image_ptr));
-        char** iterationsArr_ptr = byte_pointer + ((size_t) & ((*image_ptr)->iterationsArr) - (size_t)(*image_ptr));
-        cudaMallocManaged(points_ptr, total_pixels * sizeof(cuDoubleComplex), cudaMemAttachGlobal);
-        cudaMallocManaged(iterated_points_ptr, total_pixels * sizeof(cuDoubleComplex), cudaMemAttachGlobal);
-        cudaMallocManaged(squared_absolute_values_ptr, total_pixels * sizeof(double), cudaMemAttachGlobal);
-        cudaMallocManaged(pixels_rgb_ptr, total_pixels * 3 * sizeof(unsigned char), cudaMemAttachGlobal);
-        cudaMallocManaged(iterationsArr_ptr, total_pixels * sizeof(unsigned int), cudaMemAttachGlobal);
+        cudaMallocManaged(&((*image_ptr)->points), total_pixels * sizeof(cuDoubleComplex), cudaMemAttachGlobal);
+        cudaMallocManaged(&((*image_ptr)->iterated_points), total_pixels * sizeof(cuDoubleComplex), cudaMemAttachGlobal);
+        cudaMallocManaged(&((*image_ptr)->squared_absolute_values), total_pixels * sizeof(double), cudaMemAttachGlobal);
+        cudaMallocManaged(&((*image_ptr)->pixels_rgb), total_pixels * 3 * sizeof(unsigned char), cudaMemAttachGlobal);
+        cudaMallocManaged(&((*image_ptr)->iterationsArr), total_pixels * sizeof(unsigned int), cudaMemAttachGlobal);
     }
     else if (!(g_cuda_device_available)) {
         (*image_ptr)->points = malloc(total_pixels * sizeof(cuDoubleComplex));
