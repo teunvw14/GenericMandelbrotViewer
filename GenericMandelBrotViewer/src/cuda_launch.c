@@ -1,5 +1,6 @@
-#include <cuda_runtime.h>
 #include <stdio.h>
+
+#include <cuda_runtime.h>
 #include "mandelbrot_image.h"
 #include "calculations_non_cuda.h"
 #include "constants.h"
@@ -13,7 +14,7 @@ void check_cuda_err(void)
         char* file = __FILE__;
         int line = __LINE__;
         fprintf(stderr, "CUDA error: %s %s %d\n", cudaGetErrorString(code), file, line);
-        exit(code);
+        exit(1);
     }
 }
 
@@ -36,21 +37,19 @@ void build_complex_grid(mandelbrot_image* image)
 }
 
 void color_cuda(mandelbrot_image* image, palette plt) {
-    switch (g_coloring_mode) {
-    case COLORING_PALETTE:
-        printf("a");
-        launch_color_palette_cuda(g_cuda_num_blocks, g_cuda_block_size, image, plt);
-        break;
-    case COLORING_SMOOTH:
-        printf("b");
-        launch_color_smooth_cuda(g_cuda_num_blocks, g_cuda_block_size, image);
-        break;
-    default:
-        printf("c");
-        launch_color_palette_cuda(g_cuda_num_blocks, g_cuda_block_size, image, plt);
-        break;
-    }
-
+    launch_color_smooth_cuda(g_cuda_num_blocks, g_cuda_block_size, image, plt);
+    // TODO: add more CUDA coloring modes
+    //switch (g_coloring_mode) {
+    //case COLORING_PALETTE:
+    //    launch_color_palette_cuda(g_cuda_num_blocks, g_cuda_block_size, image, plt);
+    //    break;
+    //case COLORING_SMOOTH:
+    //    launch_color_smooth_cuda(g_cuda_num_blocks, g_cuda_block_size, image);
+    //    break;
+    //default:
+    //    launch_color_smooth_cuda(g_cuda_num_blocks, g_cuda_block_size, image, plt);
+    //    break;
+    //}
 }
 
 void mandelbrot_color(mandelbrot_image* image) {
@@ -102,7 +101,6 @@ void reset_render_objects(mandelbrot_image* image)
     // Reset the `squared_absolute_values` to zero by allocating the memory space again.
     if (g_cuda_device_available) {
         launch_reset_render_arrays_cuda(g_cuda_num_blocks, g_cuda_block_size, image);
-        check_cuda_err();
         cudaDeviceSynchronize();
     } else if (!(g_cuda_device_available)) {
         reset_render_arrays_non_cuda(image);

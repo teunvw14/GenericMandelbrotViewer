@@ -140,6 +140,7 @@
     <ClCompile Include="src\util\controls.c" />
     <ClCompile Include="src\cuda_launch.c" />
     <ClCompile Include="src\main.c" />
+    <ClCompile Include="src\util\create_png.c" />
     <ClCompile Include="src\util\hsv_to_rgb.c" />
     <ClCompile Include="src\util\perftest.c" />
   </ItemGroup>

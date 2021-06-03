@@ -29,7 +29,7 @@ void setup_performance_iteration(mandelbrot_image* image)
 {
     int starting_max_iterations = 0;
     // Choose a spot to move to, and change starting max_iterations accordingly
-    unsigned short spot = ceil(4.0 * (float)g_performance_iterations_done / (float)g_performance_iterations_total);
+    unsigned short spot = (unsigned short)ceil(4.0 * (float)g_performance_iterations_done / (float)g_performance_iterations_total);
     if (spot <= 0) {
         spot = 1;
     }

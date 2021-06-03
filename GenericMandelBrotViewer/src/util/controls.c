@@ -37,6 +37,20 @@ void window_callback(GLFWwindow* window, int w, int h)
     g_resized_new_h = h;
 }
 
+void mouse_callback(GLFWwindow* window, int button, int action, int mods) {
+    if (button == GLFW_MOUSE_BUTTON_1) {
+        g_lmb_input_flag = true;
+        g_lmb_input_action = action;
+    }
+}
+
+void cursor_move_callback(GLFWwindow* window, double xpos, double ypos) {
+    g_cursor_moved = true;
+    g_cursor_pos_x = xpos;
+    g_cursor_pos_y = ypos;
+}
+
+
 void process_scroll_input(mandelbrot_image* image, double xoffset, double yoffset)
 {
     if (yoffset > 0) {
@@ -137,7 +151,6 @@ void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window
         g_coloring_mode %= 3;
         break;
     case GLFW_KEY_SPACE: {
-        color_rgb first = palette_pretty.colors[0];
         for (int i = 0; i < palette_pretty.length; i++) {
             palette_pretty.colors[i] = palette_pretty.colors[(i + 1) % palette_pretty.length];
         }
@@ -203,4 +216,23 @@ void process_resize(mandelbrot_image** image_ptr, mandelbrot_image* image, GLFWw
     glfwSetWindowSize(window, new_width, new_height);
     reallocate_memory(image_ptr);
     reset_render_objects(image);
+}
+
+void process_mouse_input(mandelbrot_image* image, GLFWwindow* window, int action) {
+    if (action == GLFW_PRESS) {
+        g_lmb_pressed = true;
+        glfwGetCursorPos(window, &g_dragging_start_x, &g_dragging_start_y);
+        g_dragging_center_real = image->center_real;
+        g_dragging_center_imag = image->center_imag;
+    } else if (action == GLFW_RELEASE) {
+        g_lmb_pressed = false;
+    }
+}
+
+void process_cursor_move(mandelbrot_image* image, GLFWwindow* window, double xpos, double ypos) {
+    if (g_lmb_pressed) {
+        image->center_real = g_dragging_center_real + 2 * image->draw_radius_x * (g_dragging_start_x - xpos)/ image->resolution_x;
+        image->center_imag = g_dragging_center_imag + 2 * image->draw_radius_y * (ypos - g_dragging_start_y) / image->resolution_y;
+        reset_render_objects(image);
+    }
 }

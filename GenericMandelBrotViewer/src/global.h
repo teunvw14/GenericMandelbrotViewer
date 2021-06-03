@@ -34,6 +34,16 @@ int g_rendered_iterations;
 // Input related
 bool g_keypress_input_flag;
 int g_last_keypress_input;
+bool g_lmb_input_flag; // left mouse button
+bool g_lmb_pressed;
+int g_lmb_input_action;
+double g_dragging_center_real;
+double g_dragging_center_imag;
+double g_dragging_start_x;
+double g_dragging_start_y;
+bool g_cursor_moved;
+double g_cursor_pos_x;
+double g_cursor_pos_y;
 bool g_scroll_input_flag;
 int g_last_scroll_xoffset;
 int g_last_scroll_yoffset;

@@ -20,7 +20,6 @@ int main()
     cudaGetDeviceCount(&deviceCount);
     if (deviceCount > 0) {
         int cuda_device_id;
-        // TODO: move this to `allocate_memory`, but that would require a pointer to the pointer
         cudaGetDevice(&cuda_device_id);
         struct cudaDeviceProp cuda_device_properties;
         cudaGetDeviceProperties(&cuda_device_properties, cuda_device_id);

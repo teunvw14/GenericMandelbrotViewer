@@ -7,6 +7,7 @@
 #include <device_launch_parameters.h>
 
 #include "util/color_palette.h"
+#include "util/create_png.h"
 #include "util/perftest.h"
 #include "util/controls.h"
 #include "mandelbrot_image.h"
@@ -132,16 +133,25 @@ int setup_glfw(GLFWwindow* window)
     glfwSetKeyCallback(window, key_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetFramebufferSizeCallback(window, window_callback);
+    glfwSetMouseButtonCallback(window, mouse_callback);
+    glfwSetCursorPosCallback(window, cursor_move_callback);
     return 1;
 }
 
 void check_and_process_inputs(mandelbrot_image** image_ptr, mandelbrot_image* image, GLFWwindow* window, GLFWmonitor* monitor)
 {
+    // TODO: maybe make these "else if"s into just "if"s
     // Process keypresses if there were any:
     if (g_keypress_input_flag) {
         process_keyboard_input(g_last_keypress_input, image, window, monitor);
         reset_render_objects(image);
         g_keypress_input_flag = false;
+    } else if (g_lmb_input_flag) {
+        process_mouse_input(image, window, g_lmb_input_action);
+        g_lmb_input_flag = false;
+    } else if (g_cursor_moved) {
+        process_cursor_move(image, window, g_cursor_pos_x, g_cursor_pos_y);
+        g_cursor_moved = false;
     } else if (g_scroll_input_flag) {
         process_scroll_input(image, g_last_scroll_xoffset, g_last_scroll_yoffset);
         reset_render_objects(image);

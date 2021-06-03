@@ -136,8 +136,8 @@ void color_smooth_non_cuda(mandelbrot_image* image)
                 float escape_size = (float)(image->squared_absolute_values[index]);
                 float smoothed_iterations = iterations + 1 - log2f(log(escape_size));
                 float H = 360 * smoothed_iterations / f_max_iterations;
-                float S = .7;
-                float V = 1;
+                float S = 0.7f;
+                float V = 1.0f;
 
                 if (H > 360) H = 360;
                 if (H < 0) H = 0;
