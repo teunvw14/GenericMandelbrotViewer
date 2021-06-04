@@ -8,6 +8,7 @@
 #include "../mandelbrot_image.h"
 #include "../cuda_launch.h"
 #include "../application.h"
+#include "../constants.h"
 #include "../global.h"
 #include "color_palette.h"
 #include "create_png.h"
@@ -53,6 +54,10 @@ void cursor_move_callback(GLFWwindow* window, double xpos, double ypos) {
 
 void process_scroll_input(mandelbrot_image* image, double xoffset, double yoffset)
 {
+    // Don't do anything with scrolling / zooming when doing a performance test
+    if (g_application_mode == MODE_PERFORMANCE_TEST) {
+        return;
+    }
     if (yoffset > 0) {
         image->draw_radius_x *= 0.75; // zoom in
         image->draw_radius_y *= 0.75;
@@ -102,12 +107,6 @@ void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window
             image->max_iterations *= 0.9;
         }
         //printf("Max iterations now at: %d\n", image->max_iterations);
-        if (g_incremental_iteration) {
-            g_iterations_per_frame = g_incremental_iterations_per_frame;
-        }
-        else {
-            g_iterations_per_frame = image->max_iterations;
-        }
         break;
     case GLFW_KEY_RIGHT_BRACKET:
         if (image->max_iterations < 10) {
@@ -117,31 +116,16 @@ void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window
             image->max_iterations /= 0.9;
         }
         //printf("Max iterations now at: %d\n", image->max_iterations);
-        if (g_incremental_iteration) {
-            g_iterations_per_frame = g_incremental_iterations_per_frame;
-        }
-        else {
-            g_iterations_per_frame = image->max_iterations;
-        }
         break;
-        //case GLFW_KEY_I:
-        //    if (g_incremental_iteration)
-        //    {
-        //        g_iterations_per_frame = g_incremental_iterations_per_frame;
-        //        g_incremental_iteration = false;
-        //    }
-        //    else {
-        //        g_iterations_per_frame = image->max_iterations;
-        //        g_incremental_iteration = true;
-        //    }
-        //    break;
     case GLFW_KEY_ESCAPE:
         // Set the close flag of the window to TRUE so that the program exits:
         glfwSetWindowShouldClose(window, GL_TRUE);
         break;
     case GLFW_KEY_E:
-        // Run a performance test:
-        g_start_performance_test_flag = true;
+        // Start performance test (if one isn't already running):
+        if (g_application_mode != MODE_PERFORMANCE_TEST) {
+            g_start_performance_test_flag = true;
+        }
         break;
     case GLFW_KEY_P:
         g_create_image_flag = true;
@@ -156,6 +140,12 @@ void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window
         }
         break;
     }
+    case GLFW_KEY_U:
+        if (g_lowres_block_size < 64) { g_lowres_block_size++; }
+        break;
+    case GLFW_KEY_I:
+        if (g_lowres_block_size > 2) { g_lowres_block_size--; }
+        break;
     case GLFW_KEY_ENTER: {
         printf("Current coordinates: (%.16f, %.16f)\n", image->center_real, image->center_imag);
         char new_x_str[32];
@@ -230,7 +220,7 @@ void process_mouse_input(mandelbrot_image* image, GLFWwindow* window, int action
 }
 
 void process_cursor_move(mandelbrot_image* image, GLFWwindow* window, double xpos, double ypos) {
-    if (g_lmb_pressed) {
+    if (g_lmb_pressed && g_application_mode == MODE_VIEW) {
         image->center_real = g_dragging_center_real + 2 * image->draw_radius_x * (g_dragging_start_x - xpos)/ image->resolution_x;
         image->center_imag = g_dragging_center_imag + 2 * image->draw_radius_y * (ypos - g_dragging_start_y) / image->resolution_y;
         reset_render_objects(image);

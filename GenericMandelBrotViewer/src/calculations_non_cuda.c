@@ -23,7 +23,7 @@ void build_complex_grid_non_cuda(mandelbrot_image* image)
             index = pixel_y * image->resolution_x + pixel_x;
             point_re = image->center_real + pixel_x * step_x - image->draw_radius_x;
             image->points[index] = make_cuDoubleComplex(point_re, point_im);
-            image->iterated_points[index] = make_cuDoubleComplex(point_re, point_im);
+            //image->iterated_points[index] = make_cuDoubleComplex(point_re, point_im);
         }
     }
 }
@@ -43,29 +43,76 @@ void reset_render_arrays_non_cuda(mandelbrot_image* image)
 
 void mandelbrot_iterate_non_cuda(mandelbrot_image* image)
 {
-    int index = 0;
-    int iterations_ = 0;
-    for (int pixel_y = 0; pixel_y < image->resolution_y; pixel_y++) {
-        for (int pixel_x = 0; pixel_x < image->resolution_x; pixel_x++) {
-            // Calculate the iterations required for a given point to exceed the escape radius.
-            index = pixel_y * image->resolution_x + pixel_x;
-            cuDoubleComplex starting_number = image->points[index];
+    // For every complex point in the current view, calculate the 
+    // iterations required for a given point to exceed the escape radius.
 
-            cuDoubleComplex iterated_point = image->iterated_points[index];
-            double sq_abs = image->squared_absolute_values[index];
-            iterations_ = image->iterationsArr[index];
+    int index;
+    unsigned int iterations_;
+
+    for (int pixel_y = 0; pixel_y < image->resolution_y; pixel_y += 1) {
+        for (int pixel_x = 0; pixel_x < image->resolution_x; pixel_x += 1) {
+            index = pixel_y * image->resolution_x + pixel_x;
+            // `cnum` is the complex number that we'll iterate
+            cuDoubleComplex cnum = (image->points)[index];
+            double re = cnum.x;
+            double im = cnum.y;
+            // The below variable exists so that we can change `re`
+            // without it affecting the calculation for the new
+            // value of `im`
+            double re_temp;
+            double sq_abs = (image->squared_absolute_values)[index];
+            iterations_ = 0;
             while (iterations_ < image->max_iterations && sq_abs < image->escape_radius_squared) {
-                iterated_point = make_cuDoubleComplex(iterated_point.x * iterated_point.x - iterated_point.y * iterated_point.y + starting_number.x,
-                                                      2 * iterated_point.x * iterated_point.y + starting_number.y);
-                sq_abs = iterated_point.x * iterated_point.x + iterated_point.y * iterated_point.y;
+                re_temp = re * re - im * im + cnum.x;
+                im = 2 * re * im + cnum.y;
+                re = re_temp;
+                sq_abs = re * re + im * im;
                 iterations_++;
             }
-            image->iterated_points[index] = iterated_point;
-            image->iterationsArr[index] = iterations_;
-            image->squared_absolute_values[index] = sq_abs;
+            (image->iterationsArr)[index] = iterations_;
+            (image->squared_absolute_values)[index] = sq_abs;
         }
     }
 }
+
+void mandelbrot_iterate_non_cuda_downscaled(mandelbrot_image* image, unsigned int downscale_factor) {
+    // Do the same as above, but use the iterations calculated for one pixel
+    // for a full block of pixels
+
+    int index;
+    unsigned int iterations_;
+
+    for (int pixel_y = 0; pixel_y < image->resolution_y; pixel_y += downscale_factor) {
+        for (int pixel_x = 0; pixel_x < image->resolution_x; pixel_x += downscale_factor) {
+            index = pixel_y * image->resolution_x + pixel_x;
+            // `cnum` is the complex number that we'll iterate
+            cuDoubleComplex cnum = (image->points)[index];
+            double re = cnum.x;
+            double im = cnum.y;
+            // The below variable exists so that we can change `re`
+            // without it affecting the calculation for the new
+            // value of `im`
+            double re_temp;
+            double sq_abs = (image->squared_absolute_values)[index];
+            iterations_ = 0;
+            while (iterations_ < image->max_iterations && sq_abs < image->escape_radius_squared) {
+                re_temp = re * re - im * im + cnum.x;
+                im = 2 * re * im + cnum.y;
+                re = re_temp;
+                sq_abs = re * re + im * im;
+                iterations_++;
+            }
+            for (int block_y = pixel_y; block_y < pixel_y + downscale_factor && block_y < image->resolution_y; block_y++) {
+                for (int block_x = pixel_x; block_x < pixel_x + downscale_factor && block_x < image->resolution_x; block_x++) {
+                    index = block_y * image->resolution_x + block_x;
+                    (image->iterationsArr)[index] = iterations_;
+                    (image->squared_absolute_values)[index] = sq_abs;
+                }
+            }
+        }
+    }
+}
+
 
 void color_simple_non_cuda(mandelbrot_image* image) {
     int index;

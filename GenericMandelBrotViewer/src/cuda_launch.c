@@ -22,15 +22,16 @@ void check_cuda_err(void)
 extern void launch_build_complex_grid_cuda(int num_blocks, int block_size, mandelbrot_image* image);
 extern void launch_reset_render_arrays_cuda(int num_blocks, int block_size, mandelbrot_image* image);
 extern void launch_mandelbrot_iterate_cuda(int num_blocks, int block_size, mandelbrot_image* image);
+extern void launch_mandelbrot_iterate_downscaled_cuda(int num_blocks, int block_size, mandelbrot_image* image, unsigned int downscale_factor);
 extern void launch_color_smooth_cuda(int num_blocks, int block_size, mandelbrot_image* image);
 extern void launch_color_palette_cuda(int num_blocks, int block_size, mandelbrot_image* image, palette plt);
+
 
 // Build up a grid of complex numbers to iterate
 void build_complex_grid(mandelbrot_image* image)
 {
     if (g_cuda_device_available) {
         launch_build_complex_grid_cuda(g_cuda_num_blocks, g_cuda_block_size, image);
-        cudaDeviceSynchronize();
     } else if (!(g_cuda_device_available)) {
         build_complex_grid_non_cuda(image);
     }
@@ -70,12 +71,12 @@ void mandelbrot_iterate(mandelbrot_image* image) {
     }
 }
 
-void mandelbrot_iterate_n(mandelbrot_image* image, int n) {
+void mandelbrot_iterate_downscaled(mandelbrot_image* image, unsigned int downscale_factor) {
     if (g_cuda_device_available) {
-        launch_mandelbrot_iterate_cuda(g_cuda_num_blocks, g_cuda_block_size, image);
+        launch_mandelbrot_iterate_downscaled_cuda(g_cuda_num_blocks, g_cuda_block_size, image, downscale_factor);
     }
     else {
-        mandelbrot_iterate_non_cuda(image);
+        mandelbrot_iterate_non_cuda_downscaled(image, downscale_factor);
     }
 }
 
@@ -83,31 +84,41 @@ void mandelbrot_iterate_and_color(mandelbrot_image* image)
 {
     mandelbrot_iterate(image);
     mandelbrot_color(image);
+    if (g_cuda_device_available) {
+        cudaDeviceSynchronize();
+    }
 }
 
-// Under maintenance
-void mandelbrot_iterate_n_and_color(mandelbrot_image* image, int n)
+void mandelbrot_iterate_downscaled_and_color(mandelbrot_image* image, unsigned int downscale_factor)
 {
-    mandelbrot_iterate_n(image, n);
+    mandelbrot_iterate_downscaled(image, downscale_factor);
     mandelbrot_color(image);
     if (g_cuda_device_available) {
         cudaDeviceSynchronize();
     }
 }
 
-// Reset all the variables that are used for rendering the Mandelbrot
-void reset_render_objects(mandelbrot_image* image)
-{
-    // Reset the `squared_absolute_values` to zero by allocating the memory space again.
+void reset_render_arrays(mandelbrot_image* image) {
     if (g_cuda_device_available) {
         launch_reset_render_arrays_cuda(g_cuda_num_blocks, g_cuda_block_size, image);
-        cudaDeviceSynchronize();
-    } else if (!(g_cuda_device_available)) {
+    }
+    else if (!(g_cuda_device_available)) {
         reset_render_arrays_non_cuda(image);
     }
+}
+
+void reset_render_objects(mandelbrot_image* image)
+{
+    // Reset all the variables that are used for rendering the Mandelbrot
+    reset_render_arrays(image);
     // Rebuild the grid of complex numbers based on (new) center_real and (new) center_imag.
     build_complex_grid(image);
+    if (g_cuda_device_available) {
+        cudaDeviceSynchronize();
+    }
 
     // Reset the amount of rendered iterations to 0.
-    g_rendered_iterations = 0;
+    g_rendering_done = false;
+    g_lowres_rendering_done = false;
+    g_medres_rendering_done = false;
 }

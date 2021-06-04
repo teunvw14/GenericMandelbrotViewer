@@ -34,11 +34,11 @@ void setup_behavioral_parameters(void)
     g_application_mode = MODE_VIEW;
     g_coloring_mode = COLORING_SIMPLE;
     g_coloring_palette = palette_pretty;
-    g_incremental_iteration = false;
     g_create_image_flag = false;
-    g_iterations_per_frame = 1; // also set later based on whether incremental iterations are enabled.
-    g_incremental_iterations_per_frame = 4;
-    g_rendered_iterations = 0;
+    g_rendering_done = false;
+    g_lowres_rendering_done = false;
+    g_lowres_block_size = 16;
+    g_medres_block_size = 9;
 }
 
 void setup_cuda_paramaters(mandelbrot_image* image)

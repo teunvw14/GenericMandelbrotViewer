@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <sys/timeb.h>
 
 #include "../global.h"
@@ -8,14 +9,14 @@
 
 
 // Performance testing functions below:
-void start_performance_test(mandelbrot_image* image)
+void start_performance_test(mandelbrot_image** image_ptr, mandelbrot_image* image)
 {
     printf("Starting performance test.\n");
     g_start_performance_test_flag = false;
     g_performance_iterations_done = 0;
-    g_rendered_iterations = 0;
+    g_rendering_done = false;
     reset_render_objects(image);
-    ftime(&g_start);
+    ftime(&g_perftest_start);
 
     // Set parameters for test:
     g_max_iterations_store = image->max_iterations;
@@ -65,7 +66,7 @@ void setup_performance_iteration(mandelbrot_image* image)
     default:
         break;
     }
-    // hack to g_start iterating from `starting_max_iterations` for each new spot
+    // hack to start iterating from `starting_max_iterations` for each new spot
     image->max_iterations = starting_max_iterations + g_performance_iterations_done * 4 - ((g_performance_iterations_total - 1) * 4 * (spot - 1) / 4);
     printf("\rRendering spot %d with %d iterations.", spot, image->max_iterations);
     fflush(stdout);
@@ -82,6 +83,6 @@ int end_performance_test(mandelbrot_image* image)
     image->draw_radius_x = g_draw_radius_x_store;
     image->draw_radius_y = g_draw_radius_y_store;
     reset_render_objects(image);
-    int elapsed_time = (int)1000.0 * (g_end.time - g_start.time) + (g_end.millitm - g_start.millitm);
+    int elapsed_time = (int)1000.0 * (g_end.time - g_perftest_start.time) + (g_end.millitm - g_perftest_start.millitm);
     return elapsed_time;
 }

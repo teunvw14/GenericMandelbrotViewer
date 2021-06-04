@@ -36,7 +36,6 @@ int main()
     setup_starting_parameters();
     setup_image(image);
     setup_colors();
-    setup_incremental_iterations(image);
     allocate_memory(&image);
     reset_render_objects(image); // reset, or rather: initialize rendering objects
 
@@ -53,7 +52,7 @@ int main()
 
     // Loop until the window is closed
     while (!glfwWindowShouldClose(window)) {
-        run_program_iteration(&image, image, window, monitor, window_title, g_iterations_per_frame);
+        run_program_iteration(&image, image, window, monitor, window_title);
         // Poll for and process events
         glfwPollEvents();
     }
