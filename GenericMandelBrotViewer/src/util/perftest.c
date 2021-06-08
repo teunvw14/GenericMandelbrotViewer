@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <sys/timeb.h>
 
+#include "controls.h"
 #include "../global.h"
 #include "../cuda_launch.h"
 #include "../application.h"
@@ -20,6 +21,8 @@ void start_performance_test(mandelbrot_image** image_ptr, mandelbrot_image* imag
 
     // Set parameters for test:
     g_max_iterations_store = image->max_iterations;
+    g_resolution_x_store = image->resolution_x;
+    g_resolution_y_store = image->resolution_y;
     g_center_real_store = image->center_real;
     g_center_imag_store = image->center_imag;
     g_draw_radius_x_store = image->draw_radius_x;
@@ -40,28 +43,28 @@ void setup_performance_iteration(mandelbrot_image* image)
         image->center_imag = -0.05694208981877081632294590463061;
         image->draw_radius_x = 1.9 * pow(10, -13);
         image->draw_radius_y = image->draw_radius_x;
-        starting_max_iterations = 512;
+        starting_max_iterations = 712;
         break;
     case 2:
         image->center_real = -0.0452407411;
         image->center_imag = 0.9868162204352258;
         image->draw_radius_x = 4.4 * pow(10, -9);
         image->draw_radius_y = image->draw_radius_x;
-        starting_max_iterations = 128;
+        starting_max_iterations = 328;
         break;
     case 3:
         image->center_real = -0.7336438924199521;
         image->center_imag = 0.2455211406714035;
         image->draw_radius_x = 4.5 * pow(10, -14);
         image->draw_radius_y = image->draw_radius_x;
-        starting_max_iterations = 624;
+        starting_max_iterations = 824;
         break;
     case 4:
         image->center_real = -0.0452407411;
         image->center_imag = 0.9868162204352258;
         image->draw_radius_x = 4.4 * pow(10, -9);
         image->draw_radius_y = image->draw_radius_x;
-        starting_max_iterations = 128;
+        starting_max_iterations = 328;
         break;
     default:
         break;

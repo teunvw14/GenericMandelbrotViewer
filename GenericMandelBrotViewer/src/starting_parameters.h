@@ -7,13 +7,14 @@
 #include "global.h"
 #include "util/color_palette.h"
 
+// TODO: update this file with new globals;
 
 void setup_debugging_performance_parameters(void)
 {
     g_debugging_enabled = false;
     g_start_performance_test_flag = false;
     g_performance_iterations_done = 0;
-    g_performance_iterations_total = 256;
+    g_performance_iterations_total = 32;
 }
 
 void setup_image_parameters(mandelbrot_image* image)

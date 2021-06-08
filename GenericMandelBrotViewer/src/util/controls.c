@@ -19,8 +19,12 @@
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     if (action == GLFW_PRESS) {
-        g_keypress_input_flag = true;
-        g_last_keypress_input = key;
+        g_keyboard_press_flag = true;
+        g_last_keyboard_press = key;
+    }
+    else if (action == GLFW_RELEASE) {
+        g_keyboard_release_flag = true;
+        g_last_keyboard_release = key;
     }
 }
 
@@ -58,19 +62,53 @@ void process_scroll_input(mandelbrot_image* image, double xoffset, double yoffse
     if (g_application_mode == MODE_PERFORMANCE_TEST) {
         return;
     }
-    if (yoffset > 0) {
-        image->draw_radius_x *= 0.75; // zoom in
-        image->draw_radius_y *= 0.75;
+    if (g_shift_pressed || g_lmb_pressed) {
+        if (yoffset > 0) {
+            if (image->max_iterations > 2 && image->max_iterations < 10) {
+                image->max_iterations--;
+            }
+            else if (image->max_iterations >= 10) {
+                image->max_iterations *= 0.9;
+            }
+        }
+        else {
+            if (image->max_iterations < 10) {
+                image->max_iterations++;
+            }
+            else if (image->max_iterations >= 10) {
+                image->max_iterations /= 0.9;
+            }
+        }
     }
-    else if (yoffset < 0) {
-        image->draw_radius_x /= 0.75; // zoom out
-        image->draw_radius_y /= 0.75;
+    else {
+        if (yoffset > 0) {
+            // Adjust center towards the cursor
+            // This calculation is "trying to keep the same point under 
+            // the cursor when scrolling", that's the most intuitive way
+            // to think about it.
+            image->center_real += 0.25 * image->draw_radius_x * 2 * (g_cursor_pos_x - image->resolution_x / 2) / image->resolution_x;
+            image->center_imag -= 0.25 * image->draw_radius_y * 2 * (g_cursor_pos_y - image->resolution_y / 2) / image->resolution_y;
+            image->draw_radius_x *= 0.75; // zoom in
+            image->draw_radius_y *= 0.75;
+        }
+        else {
+            // Adjust center towards cursor (in opposite direction)
+            // See comment above for short explanation.
+            image->center_real -= image->draw_radius_x * 2 * (g_cursor_pos_x - image->resolution_x / 2) / (image->resolution_x * 3);
+            image->center_imag += image->draw_radius_y * 2 * (g_cursor_pos_y - image->resolution_y / 2) / (image->resolution_y * 3);
+            image->draw_radius_x /= 0.75; // zoom out
+            image->draw_radius_y /= 0.75;
+        }
     }
+    reset_render_objects(image);
 }
 
-void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window, GLFWmonitor* monitor)
+void process_keyboard_press(int key, mandelbrot_image* image, GLFWwindow* window, GLFWmonitor* monitor)
 {
     switch (key) {
+    case GLFW_KEY_LEFT_SHIFT:
+        g_shift_pressed = true;
+        break;
     case GLFW_KEY_D:
         if (g_debugging_enabled) {
             g_debugging_enabled = false;
@@ -82,22 +120,28 @@ void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window
     case GLFW_KEY_EQUAL: // zoom in, = is also +
         image->draw_radius_x *= 0.75; // zoom in
         image->draw_radius_y *= 0.75;
+        reset_render_objects(image);
         break;
     case GLFW_KEY_MINUS:
         image->draw_radius_x /= 0.75; // zoom out
         image->draw_radius_y /= 0.75;
+        reset_render_objects(image);
         break;
     case GLFW_KEY_LEFT:
         image->center_real -= 0.1 * image->draw_radius_x;
+        reset_render_objects(image);
         break;
     case GLFW_KEY_RIGHT:
         image->center_real += 0.1 * image->draw_radius_x;
+        reset_render_objects(image);
         break;
     case GLFW_KEY_UP:
         image->center_imag += 0.1 * image->draw_radius_y;
+        reset_render_objects(image);
         break;
     case GLFW_KEY_DOWN:
         image->center_imag -= 0.1 * image->draw_radius_y;
+        reset_render_objects(image);
         break;
     case GLFW_KEY_LEFT_BRACKET:
         if (image->max_iterations > 2 && image->max_iterations < 10) {
@@ -106,6 +150,7 @@ void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window
         else if (image->max_iterations >= 10) {
             image->max_iterations *= 0.9;
         }
+        reset_render_objects(image);
         //printf("Max iterations now at: %d\n", image->max_iterations);
         break;
     case GLFW_KEY_RIGHT_BRACKET:
@@ -115,6 +160,7 @@ void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window
         else if (image->max_iterations >= 10) {
             image->max_iterations /= 0.9;
         }
+        reset_render_objects(image);
         //printf("Max iterations now at: %d\n", image->max_iterations);
         break;
     case GLFW_KEY_ESCAPE:
@@ -135,11 +181,15 @@ void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window
         g_coloring_mode %= 3;
         break;
     case GLFW_KEY_SPACE: {
-        for (int i = 0; i < palette_pretty.length; i++) {
-            palette_pretty.colors[i] = palette_pretty.colors[(i + 1) % palette_pretty.length];
+        if (g_coloring_mode == COLORING_PALETTE) {
+            for (int i = 0; i < palette_pretty.length; i++) {
+                palette_pretty.colors[i] = palette_pretty.colors[(i + 1) % palette_pretty.length];
+            }
+            reset_render_objects(image);
         }
         break;
     }
+    // TODO: enhance (or maybe just remove) these controls:
     case GLFW_KEY_U:
         if (g_lowres_block_size < 64) { g_lowres_block_size++; }
         break;
@@ -147,6 +197,7 @@ void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window
         if (g_lowres_block_size > 2) { g_lowres_block_size--; }
         break;
     case GLFW_KEY_ENTER: {
+        // read coordinates from input
         printf("Current coordinates: (%.16f, %.16f)\n", image->center_real, image->center_imag);
         char new_x_str[32];
         char new_y_str[32];
@@ -159,10 +210,20 @@ void process_keyboard_input(int key, mandelbrot_image* image, GLFWwindow* window
         new_y = strtod(new_y_str, NULL);
         image->center_real = new_x;
         image->center_imag = new_y;
+        reset_render_objects(image);
         break;
     }
     }
 }
+
+void process_keyboard_release(int key, mandelbrot_image* image, GLFWwindow* window, GLFWmonitor* monitor) {
+    switch (key) {
+    case GLFW_KEY_LEFT_SHIFT:
+        g_shift_pressed = false;
+        break;
+    }
+}
+
 
 void process_resize(mandelbrot_image** image_ptr, mandelbrot_image* image, GLFWwindow* window, GLFWmonitor* monitor, int w, int h)
 {

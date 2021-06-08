@@ -131,10 +131,12 @@ void check_and_process_inputs(mandelbrot_image** image_ptr, mandelbrot_image* im
 {
     // TODO: maybe make these "else if"s into just "if"s
     // Process keypresses if there were any:
-    if (g_keypress_input_flag) {
-        process_keyboard_input(g_last_keypress_input, image, window, monitor);
-        reset_render_objects(image);
-        g_keypress_input_flag = false;
+    if (g_keyboard_press_flag) {
+        process_keyboard_press(g_last_keyboard_press, image, window, monitor);
+        g_keyboard_press_flag = false;
+    } else if (g_keyboard_release_flag) {
+        process_keyboard_release(g_last_keyboard_release, image, window, monitor);
+        g_keyboard_release_flag = false;
     } else if (g_lmb_input_flag) {
         process_mouse_input(image, window, g_lmb_input_action);
         g_lmb_input_flag = false;
@@ -143,7 +145,6 @@ void check_and_process_inputs(mandelbrot_image** image_ptr, mandelbrot_image* im
         g_cursor_moved = false;
     } else if (g_scroll_input_flag) {
         process_scroll_input(image, g_last_scroll_xoffset, g_last_scroll_yoffset);
-        reset_render_objects(image);
         g_scroll_input_flag = false;
     } else if (g_resized_flag) {
         process_resize(image_ptr, image, window, monitor, g_resized_new_w, g_resized_new_h);
@@ -186,18 +187,10 @@ void run_program_iteration(
     if (g_start_performance_test_flag) {
         g_application_mode = MODE_PERFORMANCE_TEST;
         start_performance_test(image_ptr, image);
-    }
-    if (g_application_mode == MODE_PERFORMANCE_TEST) {
-        setup_performance_iteration(image);
-        g_performance_iterations_done++;
-        if (g_performance_iterations_done >= g_performance_iterations_total) {
-            g_application_mode = MODE_VIEW;
-            printf("\rPerformance test took %d ms.           \n", end_performance_test(image));
-            fflush(stdout);
-        }
+        process_resize(image_ptr, image, window, monitor, 512, 512);
     }
     check_and_process_inputs(image_ptr, image, window, monitor);
-    if ((g_application_mode == MODE_VIEW || g_application_mode == MODE_PERFORMANCE_TEST) && g_rendering_done == false) {
+    if (g_application_mode == MODE_VIEW && g_rendering_done == false) {
         if (!g_lowres_rendering_done) {
             mandelbrot_iterate_downscaled_and_color(image, g_lowres_block_size);
             g_lowres_rendering_done = true;
@@ -216,5 +209,18 @@ void run_program_iteration(
         sprintf(window_title, "GenericMandelbrotViewer | Center: %.4f + %.4f i | Max iterations: %d | Drawing radius (horizontal): %.2f", image->center_real, image->center_imag, image->max_iterations, image->draw_radius_x);
         glfwSetWindowTitle(window, window_title);
         draw_pixels(image, window);
+    }
+    else if (g_application_mode == MODE_PERFORMANCE_TEST) {
+        setup_performance_iteration(image);
+        reset_render_arrays(image);
+        mandelbrot_iterate_and_color(image);
+        draw_pixels(image, window);
+        g_performance_iterations_done++;
+        if (g_performance_iterations_done >= g_performance_iterations_total) {
+            g_application_mode = MODE_VIEW;
+            printf("\rPerformance test took %d ms.           \n", end_performance_test(image));
+            process_resize(image_ptr, image, window, monitor, g_resolution_x_store, g_resolution_y_store);
+            fflush(stdout);
+        }
     }
 }

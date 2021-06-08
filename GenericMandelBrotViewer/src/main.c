@@ -42,7 +42,7 @@ int main()
     // Initialize the library
     if (!glfwInit())
         return -1;
-
+    
     // Create a windowed mode window and its OpenGL context
     GLFWwindow* window = glfwCreateWindow(image->resolution_x, image->resolution_y, "Hello World", NULL, NULL);
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
