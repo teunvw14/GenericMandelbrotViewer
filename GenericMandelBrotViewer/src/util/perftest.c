@@ -3,9 +3,10 @@
 #include <sys/timeb.h>
 
 #include "controls.h"
-#include "../global.h"
-#include "../cuda_launch.h"
 #include "../application.h"
+#include "../cuda_launch.h"
+#include "../constants.h"
+#include "../global.h"
 #include "../mandelbrot_image.h"
 
 
@@ -27,6 +28,8 @@ void start_performance_test(mandelbrot_image** image_ptr, mandelbrot_image* imag
     g_center_imag_store = image->center_imag;
     g_draw_radius_x_store = image->draw_radius_x;
     g_draw_radius_y_store = image->draw_radius_y;
+    g_coloring_mode_store = g_coloring_mode;
+    g_coloring_mode = COLORING_SMOOTH;
 }
 
 void setup_performance_iteration(mandelbrot_image* image)
@@ -85,6 +88,7 @@ int end_performance_test(mandelbrot_image* image)
     image->center_imag = g_center_imag_store;
     image->draw_radius_x = g_draw_radius_x_store;
     image->draw_radius_y = g_draw_radius_y_store;
+    g_coloring_mode = g_coloring_mode_store;
     reset_render_objects(image);
     int elapsed_time = (int)1000.0 * (g_end.time - g_perftest_start.time) + (g_end.millitm - g_perftest_start.millitm);
     return elapsed_time;

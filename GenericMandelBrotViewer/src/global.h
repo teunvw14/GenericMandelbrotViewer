@@ -24,6 +24,7 @@ int g_center_real_store;
 int g_center_imag_store;
 double g_draw_radius_x_store;
 double g_draw_radius_y_store;
+int g_coloring_mode_store;
 
 // Behavioral parameters
 // ---
