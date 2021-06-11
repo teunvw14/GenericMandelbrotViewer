@@ -179,6 +179,7 @@ void process_keyboard_press(int key, mandelbrot_image* image, GLFWwindow* window
     case GLFW_KEY_M:
         g_coloring_mode += 1;
         g_coloring_mode %= 3;
+        reset_render_objects(image);
         break;
     case GLFW_KEY_SPACE: {
         if (g_coloring_mode == COLORING_PALETTE) {
