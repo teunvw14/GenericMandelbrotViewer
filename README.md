@@ -44,7 +44,7 @@ This project taught me:
 # Features
 
 - Basic controls for viewing the mandelbrot set
-- Speedy performance thanks to NVidia GPU acceleration. Also works on systems without an NVidia GPU. 
+- Speedy performance thanks to NVIDIA GPU acceleration. Also works on systems without an NVIDIA GPU. 
 - Performance test to check performance of (future) optimisations.
 
 # Controls
@@ -60,7 +60,7 @@ This project taught me:
 ### Requirements
 To build this projects: the following software is required. 
 - Visual Studio 19
-- The [CUDA Toolkit](developer.nvidia.com/cuda-downloads)
+- The [CUDA Toolkit](developer.NVIDIA.com/cuda-downloads)
 
 ### Build using Visual Studio 19
 Open the solution in Visual Studio, and build. (`Build > Build Solution`)
